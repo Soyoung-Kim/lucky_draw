@@ -29,9 +29,11 @@ const state = {
   drawChannel: null,
   countTimer: null,
   drawTimer: null,
+  loadRequestId: 0,
 };
 
 const els = {
+  appShell: $("#appShell"),
   roomCodeInput: $("#roomCodeInput"),
   loadRoomButton: $("#loadRoomButton"),
   roomStatusBadge: $("#roomStatusBadge"),
@@ -44,6 +46,7 @@ const els = {
   employeeNoInput: $("#employeeNoInput"),
   submitEntryButton: $("#submitEntryButton"),
   entryMessage: $("#entryMessage"),
+  drawPanel: $("#drawPanel"),
   drawStage: $("#drawStage"),
   resultList: $("#resultList"),
 };
@@ -52,6 +55,16 @@ function setEntryEnabled(enabled) {
   els.nameInput.disabled = !enabled;
   els.employeeNoInput.disabled = !enabled;
   els.submitEntryButton.disabled = !enabled;
+}
+
+function canShowDrawPanel() {
+  return ["closed", "drawing", "finished"].includes(state.room?.status);
+}
+
+function renderDrawPanelVisibility() {
+  const shouldShow = canShowDrawPanel();
+  els.drawPanel.classList.toggle("is-hidden", !shouldShow);
+  els.appShell.classList.toggle("app-shell-single", !shouldShow);
 }
 
 function renderRoom() {
@@ -64,6 +77,7 @@ function renderRoom() {
     els.eventPeriod.textContent = "";
     updateStatusBadge(els.roomStatusBadge, "");
     setEntryEnabled(false);
+    renderDrawPanelVisibility();
     return;
   }
 
@@ -72,6 +86,7 @@ function renderRoom() {
   els.eventPeriod.textContent = `${formatDateTime(room.starts_at)} - ${formatDateTime(room.ends_at)}`;
   updateStatusBadge(els.roomStatusBadge, room.status);
   setEntryEnabled(room.status === "open");
+  renderDrawPanelVisibility();
 }
 
 async function refreshParticipantCount() {
@@ -149,6 +164,7 @@ function startPolling() {
 }
 
 async function loadRoom(code) {
+  const requestId = (state.loadRequestId += 1);
   const normalizedCode = code.trim().toUpperCase();
 
   if (!normalizedCode) {
@@ -157,9 +173,14 @@ async function loadRoom(code) {
   }
 
   setButtonLoading(els.loadRoomButton, true, "입장 중");
+  setMessage(els.entryMessage, "이벤트를 확인하는 중입니다.");
 
   try {
     const room = await fetchRoomByCode(normalizedCode);
+
+    if (requestId !== state.loadRequestId) {
+      return;
+    }
 
     if (!room) {
       setMessage(els.entryMessage, "이벤트를 찾을 수 없습니다.", "error");
@@ -188,12 +209,33 @@ async function loadRoom(code) {
       onDraw: () => refreshLatestDraw().catch(console.error),
     });
 
-    await Promise.all([refreshParticipantCount(), refreshLatestDraw()]);
+    const settled = await Promise.allSettled([refreshParticipantCount(), refreshLatestDraw()]);
+    const failed = settled.find((result) => result.status === "rejected");
+
+    if (requestId !== state.loadRequestId) {
+      return;
+    }
+
+    if (failed) {
+      console.error(failed.reason);
+      setMessage(
+        els.entryMessage,
+        `${room.code} 이벤트에 입장했습니다. 일부 현황은 잠시 후 다시 갱신됩니다.`,
+        "success",
+      );
+    }
+
     startPolling();
   } catch (error) {
+    if (requestId !== state.loadRequestId) {
+      return;
+    }
+
     setMessage(els.entryMessage, error.message, "error");
   } finally {
-    setButtonLoading(els.loadRoomButton, false);
+    if (requestId === state.loadRequestId) {
+      setButtonLoading(els.loadRoomButton, false);
+    }
   }
 }
 

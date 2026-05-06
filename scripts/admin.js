@@ -398,7 +398,13 @@ async function handleCreateDraw(event) {
       reveal_mode: revealMode,
     });
 
-    setMessage(els.drawAdminMessage, "추첨 결과가 서버에서 확정되었습니다.", "success");
+    setMessage(
+      els.drawAdminMessage,
+      revealMode === "auto"
+        ? "추첨 결과가 서버에서 확정되었습니다. 자동 공개를 시작합니다."
+        : "추첨 결과가 서버에서 확정되었습니다. 다음 공개를 눌러 결과를 공개하세요.",
+      "success",
+    );
     state.room.status = "drawing";
     await loadRooms(state.room.id);
 

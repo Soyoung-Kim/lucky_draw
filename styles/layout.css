@@ -87,6 +87,15 @@
   align-items: start;
 }
 
+.app-shell.app-shell-single {
+  grid-template-columns: minmax(0, 680px);
+  justify-content: center;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
 .section-heading {
   margin-bottom: 16px;
 }
