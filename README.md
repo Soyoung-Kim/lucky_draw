@@ -1,5 +1,6 @@
 # GitHub Pages + Supabase Instant Draw MVP
 
+S@lutionTeam1!
 ## 1. Supabase 프로젝트 설정
 
 1. Supabase 프로젝트를 생성한다.
@@ -110,3 +111,22 @@ https://<GITHUB_ID>.github.io/<REPOSITORY_NAME>/admin.html
 - 중복 당첨은 `draw_results` unique constraint로 막는다.
 - `audit_logs`는 화면에서 조회하지 않고 Supabase DB에서 직접 확인한다.
 - participant count는 `employee_no` 노출을 피하기 위해 공개 화면에서 주기적으로 count 조회한다.
+
+// memo
+수퍼베이스 플젝 생성 후 ,
+https://skxxaiquhkjjlcpbmzul.supabase.co
+npx supabase link --project-ref skxxaiquhkjjlcpbmzul
+
+//한번에 배포
+npx supabase functions deploy
+
+//개별배포
+npx supabase functions deploy admin-login
+npx supabase functions deploy create-room
+npx supabase functions deploy submit-entry
+npx supabase functions deploy close-room
+npx supabase functions deploy create-draw
+npx supabase functions deploy reveal-next
+npx supabase functions deploy reveal-card
+npx supabase functions deploy reveal-all
+npx supabase functions deploy finish-draw

@@ -1,3 +1,4 @@
+/// &lt;reference types="https://deno.land/x/types/deno.d.ts" /&gt;
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { HttpError } from "./http.ts";
 
