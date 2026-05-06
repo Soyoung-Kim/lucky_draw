@@ -1,0 +1,62 @@
+.card-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 12px;
+}
+
+.flip-card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  min-height: 104px;
+  border: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  background: transparent;
+  perspective: 900px;
+}
+
+.flip-card:disabled {
+  cursor: default;
+}
+
+.flip-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.flip-card.revealed .flip-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-front,
+.flip-back {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  padding: 9px;
+  backface-visibility: hidden;
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+  font-weight: 950;
+}
+
+.flip-front {
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent),
+    linear-gradient(135deg, var(--pink-strong), #8fdcc9);
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  background: #fff;
+}
+
+.flip-card.winner .flip-back {
+  background: linear-gradient(135deg, var(--yellow), #fff8cf);
+  color: #8a5b00;
+}

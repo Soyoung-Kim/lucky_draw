@@ -1,0 +1,50 @@
+.lotto-lane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.lotto-ball {
+  display: grid;
+  width: 96px;
+  min-height: 96px;
+  place-items: center;
+  border-radius: 50%;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 32% 28%, #fff, transparent 24%),
+    linear-gradient(135deg, var(--yellow), var(--pink));
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+  font-weight: 950;
+  animation: lotto-roll 1.35s ease-in-out infinite;
+}
+
+.lotto-ball.revealed {
+  background:
+    radial-gradient(circle at 32% 28%, #fff, transparent 24%),
+    linear-gradient(135deg, var(--mint), var(--blue));
+  animation: lotto-pop 560ms ease-out both;
+}
+
+@keyframes lotto-roll {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateX(7px) rotate(18deg);
+  }
+}
+
+@keyframes lotto-pop {
+  from {
+    transform: translateY(16px) scale(0.72) rotate(-24deg);
+  }
+
+  to {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}

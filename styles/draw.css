@@ -1,0 +1,65 @@
+.draw-panel {
+  padding: clamp(18px, 4vw, 30px);
+}
+
+.draw-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  min-height: 280px;
+  padding: clamp(16px, 4vw, 28px);
+  background:
+    linear-gradient(135deg, rgba(255, 211, 229, 0.32), rgba(198, 243, 228, 0.45)),
+    rgba(255, 255, 255, 0.65);
+}
+
+.draw-mode-title {
+  margin-bottom: 18px;
+  font-weight: 950;
+}
+
+.result-wrap {
+  margin-top: 22px;
+}
+
+.result-wrap h3 {
+  margin-bottom: 12px;
+}
+
+.result-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style-position: inside;
+}
+
+.result-list li {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.78);
+  font-weight: 900;
+  box-shadow: var(--shadow-soft);
+}
+
+.sparkle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--yellow);
+  animation: sparkle-pop 900ms ease-out forwards;
+}
+
+@keyframes sparkle-pop {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(0.8);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-54px) scale(1.9);
+  }
+}

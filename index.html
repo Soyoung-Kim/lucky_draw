@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instant Draw Event</title>
+    <link rel="stylesheet" href="./styles/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./scripts/entry.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="이벤트 홈">
+        <span class="brand-mark">ID</span>
+        <span>Instant Draw</span>
+      </a>
+      <div class="topbar-actions">
+        <span id="roomStatusBadge" class="status-pill">대기</span>
+        <a class="ghost-link" href="./admin.html">관리자 로그인</a>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="entry-hero">
+        <div class="event-card">
+          <div class="room-loader">
+            <label for="roomCodeInput">이벤트 코드</label>
+            <div class="inline-form">
+              <input id="roomCodeInput" name="room_code" autocomplete="off" placeholder="EVENT-001" />
+              <button id="loadRoomButton" class="btn secondary" type="button">입장</button>
+            </div>
+          </div>
+
+          <div class="event-summary">
+            <p class="eyebrow">Company Event</p>
+            <h1 id="eventTitle">이벤트 코드를 입력해 주세요</h1>
+            <div class="metric-row">
+              <div class="metric">
+                <span class="metric-value" id="participantCount">0</span>
+                <span class="metric-label">응모자</span>
+              </div>
+              <div class="metric">
+                <span class="metric-value" id="eventStateText">대기</span>
+                <span class="metric-label">상태</span>
+              </div>
+            </div>
+            <p id="eventPeriod" class="muted"></p>
+          </div>
+
+          <form id="entryForm" class="entry-form" autocomplete="off">
+            <label for="nameInput">이름</label>
+            <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
+
+            <label for="employeeNoInput">사번</label>
+            <input id="employeeNoInput" name="employee_no" placeholder="A12345" maxlength="50" required />
+
+            <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
+          </form>
+
+          <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="draw-panel">
+        <div class="section-heading">
+          <p class="eyebrow">Live Draw</p>
+          <h2>추첨 현황</h2>
+        </div>
+        <div id="drawStage" class="draw-stage empty-state">아직 추첨이 시작되지 않았습니다</div>
+        <div class="result-wrap">
+          <h3>당첨 결과</h3>
+          <ol id="resultList" class="result-list"></ol>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

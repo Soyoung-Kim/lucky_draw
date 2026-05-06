@@ -1,0 +1,53 @@
+.capsule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 16px;
+}
+
+.capsule {
+  position: relative;
+  display: grid;
+  min-height: 126px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--pink) 0 48%, #fff 48% 52%, var(--mint) 52%);
+  box-shadow: var(--shadow-soft);
+  animation: capsule-bounce 1.6s ease-in-out infinite;
+}
+
+.capsule:nth-child(2n) {
+  animation-delay: 180ms;
+}
+
+.capsule.revealed {
+  border-radius: 24px;
+  background: linear-gradient(135deg, #fff, var(--yellow));
+  animation: capsule-open 520ms ease-out both;
+}
+
+.capsule-name {
+  padding: 0 10px;
+  text-align: center;
+  font-weight: 950;
+}
+
+@keyframes capsule-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(-7px) rotate(2deg);
+  }
+}
+
+@keyframes capsule-open {
+  from {
+    transform: scale(0.82) rotate(-8deg);
+  }
+
+  to {
+    transform: scale(1) rotate(0);
+  }
+}

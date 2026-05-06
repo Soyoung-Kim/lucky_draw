@@ -1,0 +1,82 @@
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-card {
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.control-card,
+.draw-admin-card {
+  min-height: 100%;
+}
+
+.winner-count-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 10px;
+}
+
+.segmented-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.segmented-field label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmented-field input {
+  width: auto;
+  min-height: auto;
+}
+
+.admin-metrics {
+  margin: 8px 0;
+}
+
+.share-link {
+  display: block;
+  overflow-wrap: anywhere;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: rgba(207, 232, 255, 0.55);
+  color: #276b9c;
+  font-weight: 900;
+}
+
+.admin-preview {
+  margin-top: 22px;
+}
+
+.reveal-actions {
+  margin-top: 12px;
+}
+
+@media (max-width: 860px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .winner-count-row {
+    grid-template-columns: 1fr;
+  }
+
+  .segmented-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

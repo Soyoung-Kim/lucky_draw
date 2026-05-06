@@ -1,0 +1,47 @@
+.btn {
+  min-height: 46px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0 18px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 950;
+  box-shadow: var(--shadow-soft);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--pink-strong), #ffb2ce);
+  color: #fff;
+}
+
+.btn.secondary {
+  background: linear-gradient(135deg, var(--mint), #effff7);
+}
+
+.btn.neutral {
+  background: linear-gradient(135deg, var(--blue), #fff);
+}
+
+.btn.danger {
+  background: linear-gradient(135deg, #ff9a9a, #ffe1e1);
+}

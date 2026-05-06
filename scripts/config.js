@@ -1,0 +1,16 @@
+export const CONFIG = {
+  SUPABASE_URL: "https://YOUR_PROJECT_REF.supabase.co",
+  SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY",
+  PARTICIPANT_COUNT_REFRESH_MS: 5000,
+  DRAW_REFRESH_MS: 3000,
+  AUTO_REVEAL_DELAY_MS: 1500,
+};
+
+export function isConfigured() {
+  return (
+    CONFIG.SUPABASE_URL.startsWith("https://") &&
+    !CONFIG.SUPABASE_URL.includes("YOUR_PROJECT_REF") &&
+    CONFIG.SUPABASE_ANON_KEY &&
+    CONFIG.SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY"
+  );
+}
