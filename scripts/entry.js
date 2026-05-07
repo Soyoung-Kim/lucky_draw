@@ -34,8 +34,11 @@ const state = {
 
 const els = {
   appShell: $("#appShell"),
+  roomLoaderSection: $("#roomLoaderSection"),
+  eventLoadedSection: $("#eventLoadedSection"),
   roomCodeInput: $("#roomCodeInput"),
   loadRoomButton: $("#loadRoomButton"),
+  backButton: $("#backButton"),
   roomStatusBadge: $("#roomStatusBadge"),
   eventTitle: $("#eventTitle"),
   participantCount: $("#participantCount"),
@@ -75,9 +78,18 @@ function renderRoom() {
     els.eventPeriod.textContent = "";
     updateStatusBadge(els.roomStatusBadge, "");
     setEntryEnabled(false);
+
+    // 초기 상태: 코드 입력 화면만 표시
+    els.roomLoaderSection.classList.remove("is-hidden");
+    els.eventLoadedSection.classList.add("is-hidden");
+
     renderDrawPanelVisibility();
     return;
   }
+
+  // 이벤트 로드됨: 코드 입력 화면 숨기고 이벤트 정보 표시
+  els.roomLoaderSection.classList.add("is-hidden");
+  els.eventLoadedSection.classList.remove("is-hidden");
 
   els.eventTitle.textContent = room.title;
   els.eventStateText.textContent = statusLabel(room.status);
@@ -296,6 +308,10 @@ function bindEvents() {
   const brandLink = document.querySelector(".brand");
   brandLink.addEventListener("click", (event) => {
     event.preventDefault();
+    clearRoomState();
+  });
+
+  els.backButton.addEventListener("click", () => {
     clearRoomState();
   });
 

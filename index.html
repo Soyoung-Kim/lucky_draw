@@ -23,7 +23,7 @@
     <main id="appShell" class="app-shell app-shell-single">
       <section class="entry-hero">
         <div class="event-card">
-          <div class="room-loader">
+          <div id="roomLoaderSection" class="room-loader">
             <label for="roomCodeInput">이벤트 코드</label>
             <div class="inline-form">
               <input id="roomCodeInput" name="room_code" autocomplete="off" placeholder="EVENT-001" />
@@ -31,30 +31,36 @@
             </div>
           </div>
 
-          <div class="event-summary">
-            <p class="eyebrow">Company Event</p>
-            <h1 id="eventTitle">이벤트 코드를 입력해 주세요</h1>
-            <div class="metric-row">
-              <div class="metric">
-                <span class="metric-value" id="participantCount">0</span>
-                <span class="metric-label">응모자</span>
+          <div id="eventLoadedSection" class="event-loaded is-hidden">
+            <button id="backButton" class="btn-back" type="button" aria-label="뒤로 가기">
+              <span>← 뒤로 가기</span>
+            </button>
+
+            <div class="event-summary">
+              <p class="eyebrow">Company Event</p>
+              <h1 id="eventTitle">이벤트 코드를 입력해 주세요</h1>
+              <div class="metric-row">
+                <div class="metric">
+                  <span class="metric-value" id="participantCount">0</span>
+                  <span class="metric-label">응모자</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-value" id="eventStateText">대기</span>
+                  <span class="metric-label">상태</span>
+                </div>
               </div>
-              <div class="metric">
-                <span class="metric-value" id="eventStateText">대기</span>
-                <span class="metric-label">상태</span>
-              </div>
+              <p id="eventPeriod" class="muted"></p>
             </div>
-            <p id="eventPeriod" class="muted"></p>
+
+            <form id="entryForm" class="entry-form" autocomplete="off">
+              <label for="nameInput">이름</label>
+              <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
+
+              <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
+            </form>
+
+            <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
           </div>
-
-          <form id="entryForm" class="entry-form" autocomplete="off">
-            <label for="nameInput">이름</label>
-            <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
-
-            <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
-          </form>
-
-          <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
         </div>
       </section>
 
