@@ -96,7 +96,7 @@ https://<GITHUB_ID>.github.io/<REPOSITORY_NAME>/admin.html
 2. `super / manager`로 로그인한다.
 3. 신규 이벤트명, 이벤트 코드, 시작/마감 시간을 입력하고 이벤트를 연다.
 4. 참여자에게 `index.html?room=<EVENT_CODE>` 링크를 공유한다.
-5. 참여자는 이름과 사번으로 응모한다.
+5. 참여자는 이름으로 응모한다.
 6. 관리자는 응모자 수를 확인하고 응모를 마감한다.
 7. 당첨자 수, 추첨 UI, 공개 방식을 선택하고 추첨을 시작한다.
 8. manual 모드는 다음 공개/카드 클릭/전체 공개로 진행한다.
@@ -110,7 +110,7 @@ https://<GITHUB_ID>.github.io/<REPOSITORY_NAME>/admin.html
 - 중복 응모는 `participants` unique constraint로 막는다.
 - 중복 당첨은 `draw_results` unique constraint로 막는다.
 - `audit_logs`는 화면에서 조회하지 않고 Supabase DB에서 직접 확인한다.
-- participant count는 `employee_no` 노출을 피하기 위해 공개 화면에서 주기적으로 count 조회한다.
+- 같은 이벤트 안에서는 동일 이름 중복 응모를 DB unique index로 차단한다.
 
 // memo
 수퍼베이스 플젝 생성 후 ,

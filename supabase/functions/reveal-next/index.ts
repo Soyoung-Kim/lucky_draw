@@ -28,6 +28,10 @@ Deno.serve((req) =>
       throw new HttpError("Draw is already finished", 409);
     }
 
+    if (draw.draw_mode === "card") {
+      throw new HttpError("Card mode results are selected by clicking cards", 400);
+    }
+
     const { data: nextResult, error: nextError } = await supabase
       .from("draw_results")
       .select("id, participant_id, rank")

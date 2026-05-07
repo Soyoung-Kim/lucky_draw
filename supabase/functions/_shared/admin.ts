@@ -16,7 +16,7 @@ function getAdminId() {
 }
 
 function getAdminPassword() {
-  return Deno.env.get("ADMIN_PASSWORD") ?? "manager";
+  return Deno.env.get("ADMIN_PASSWORD") ?? "password";
 }
 
 function getSessionSecret() {

@@ -18,11 +18,8 @@ create table if not exists public.participants (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
   name text not null,
-  employee_no text not null,
   created_at timestamptz not null default now(),
-  constraint participants_name_not_blank check (length(trim(name)) > 0),
-  constraint participants_employee_no_not_blank check (length(trim(employee_no)) > 0),
-  unique (room_id, employee_no)
+  constraint participants_name_not_blank check (length(trim(name)) > 0)
 );
 
 create table if not exists public.draws (
@@ -94,8 +91,8 @@ create index if not exists rooms_status_idx on public.rooms (status);
 create index if not exists participants_room_id_created_at_idx
   on public.participants (room_id, created_at, id);
 
-create index if not exists participants_room_id_employee_no_idx
-  on public.participants (room_id, employee_no);
+create unique index if not exists participants_room_id_name_unique_idx
+  on public.participants (room_id, lower(btrim(name)));
 
 create index if not exists draws_room_id_created_at_idx
   on public.draws (room_id, created_at desc);

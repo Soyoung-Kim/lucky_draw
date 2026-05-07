@@ -157,7 +157,7 @@ function renderRoom() {
   els.shareEntryLink.textContent = `${room.code} 참여 링크`;
   els.closeRoomButton.disabled = room.status !== "open";
   els.createDrawButton.disabled = room.status !== "closed";
-  els.revealNextButton.disabled = !state.draw || state.draw.status === "finished";
+  els.revealNextButton.disabled = !state.draw || state.draw.draw_mode === "card" || state.draw.status === "finished";
   els.revealAllButton.disabled = !state.draw || state.draw.status === "finished";
   els.finishDrawButton.disabled = !state.draw || state.draw.status === "finished";
 }
@@ -168,11 +168,15 @@ function renderDraw() {
     results: state.results,
     cards: state.cards,
     onCardClick:
-      state.draw?.draw_mode === "card" && state.draw?.status !== "finished"
+      state.draw?.draw_mode === "card" &&
+      state.draw?.status !== "finished" &&
+      state.results.length < state.draw.winner_count
         ? handleCardClick
         : null,
   });
-  renderResultsList(els.adminResultList, state.results);
+  renderResultsList(els.adminResultList, state.results, {
+    showRank: state.draw?.draw_mode !== "card",
+  });
   renderRoom();
 }
 
@@ -291,6 +295,22 @@ function getWinnerCount() {
   return Number(els.winnerCountSelect.value);
 }
 
+function syncRevealModeControls() {
+  const isCardMode = els.drawModeSelect.value === "card";
+  const revealModeInputs = [...document.querySelectorAll("input[name='reveal_mode']")];
+
+  revealModeInputs.forEach((input) => {
+    if (input.value === "auto") {
+      input.disabled = isCardMode;
+      input.checked = !isCardMode && input.checked;
+    }
+
+    if (input.value === "manual") {
+      input.checked = isCardMode || input.checked;
+    }
+  });
+}
+
 async function runAutoReveal(drawId, winnerCount) {
   if (state.autoRevealRunning) return;
 
@@ -389,18 +409,22 @@ async function handleCreateDraw(event) {
   setButtonLoading(els.createDrawButton, true, "추첨 중");
 
   try {
-    const revealMode = $("input[name='reveal_mode']:checked", els.createDrawForm).value;
+    const drawMode = els.drawModeSelect.value;
+    const revealMode =
+      drawMode === "card" ? "manual" : $("input[name='reveal_mode']:checked", els.createDrawForm).value;
     const response = await createDrawApi({
       ...adminPayload(),
       room_id: state.room.id,
       winner_count: getWinnerCount(),
-      draw_mode: els.drawModeSelect.value,
+      draw_mode: drawMode,
       reveal_mode: revealMode,
     });
 
     setMessage(
       els.drawAdminMessage,
-      revealMode === "auto"
+      drawMode === "card"
+        ? "카드를 눌러 당첨자를 선택하세요."
+        : revealMode === "auto"
         ? "추첨 결과가 서버에서 확정되었습니다. 자동 공개를 시작합니다."
         : "추첨 결과가 서버에서 확정되었습니다. 다음 공개를 눌러 결과를 공개하세요.",
       "success",
@@ -408,7 +432,7 @@ async function handleCreateDraw(event) {
     state.room.status = "drawing";
     await loadRooms(state.room.id);
 
-    if (response.reveal_mode === "auto") {
+    if (response.draw_mode !== "card" && response.reveal_mode === "auto") {
       runAutoReveal(response.draw_id, response.winner_count);
     }
   } catch (error) {
@@ -452,9 +476,7 @@ async function handleCardClick(position) {
     await refreshLatestDraw();
     setMessage(
       els.drawAdminMessage,
-      response.card.is_winner
-        ? `${response.card.winner_rank}등 ${response.card.participant_name}`
-        : `${position}번 카드 공개`,
+      response.card.is_winner ? `${response.card.participant_name} 선택됨` : `${position}번 카드 공개`,
       response.card.is_winner ? "success" : "",
     );
 
@@ -531,6 +553,7 @@ function bindEvents() {
   els.winnerCountSelect.addEventListener("change", () => {
     els.customWinnerCountInput.disabled = els.winnerCountSelect.value !== "custom";
   });
+  els.drawModeSelect.addEventListener("change", syncRevealModeControls);
 }
 
 function init() {
@@ -541,6 +564,7 @@ function init() {
   renderRoom();
   renderDraw();
   els.customWinnerCountInput.disabled = true;
+  syncRevealModeControls();
 
   if (state.session?.admin_session_token) {
     loadRooms().catch((error) => setMessage(els.drawAdminMessage, error.message, "error"));

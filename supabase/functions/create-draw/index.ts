@@ -11,7 +11,6 @@ const REVEAL_MODES = new Set(["auto", "manual"]);
 type Participant = {
   id: string;
   name: string;
-  employee_no: string;
   created_at: string;
 };
 
@@ -22,7 +21,7 @@ Deno.serve((req) =>
     const roomId = requiredText(body.room_id, "room_id");
     const winnerCount = requiredPositiveInteger(body.winner_count, "winner_count");
     const drawMode = requiredText(body.draw_mode, "draw_mode");
-    const revealMode = requiredText(body.reveal_mode, "reveal_mode");
+    let revealMode = requiredText(body.reveal_mode, "reveal_mode");
 
     if (!DRAW_MODES.has(drawMode)) {
       throw new HttpError("draw_mode must be capsule, card, or lotto", 400);
@@ -30,6 +29,10 @@ Deno.serve((req) =>
 
     if (!REVEAL_MODES.has(revealMode)) {
       throw new HttpError("reveal_mode must be auto or manual", 400);
+    }
+
+    if (drawMode === "card") {
+      revealMode = "manual";
     }
 
     const supabase = getServiceClient();
@@ -54,7 +57,7 @@ Deno.serve((req) =>
 
     const { data: participants, error: participantsError } = await supabase
       .from("participants")
-      .select("id, name, employee_no, created_at")
+      .select("id, name, created_at")
       .eq("room_id", room.id)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
@@ -76,7 +79,6 @@ Deno.serve((req) =>
     const participantSnapshot = participantRows.map((participant) => ({
       id: participant.id,
       name: participant.name,
-      employee_no: participant.employee_no,
       created_at: participant.created_at,
     }));
     const participantSnapshotHash = await sha256Hex(JSON.stringify(participantSnapshot));
@@ -84,11 +86,14 @@ Deno.serve((req) =>
     crypto.getRandomValues(seedBytes);
     const seedHash = await sha256Hex(seedBytes);
     const shuffledParticipants = secureShuffle(participantRows);
-    const winners = shuffledParticipants.slice(0, winnerCount);
-    const resultSnapshot = winners.map((participant, index) => ({
-      rank: index + 1,
-      participant_id: participant.id,
-    }));
+    const winners = drawMode === "card" ? [] : shuffledParticipants.slice(0, winnerCount);
+    const resultSnapshot =
+      drawMode === "card"
+        ? []
+        : winners.map((participant, index) => ({
+            rank: index + 1,
+            participant_id: participant.id,
+          }));
     const resultHash = await sha256Hex(JSON.stringify(resultSnapshot));
 
     const { data: draw, error: drawError } = await supabase
@@ -119,29 +124,24 @@ Deno.serve((req) =>
       is_revealed: false,
     }));
 
-    const { error: resultsError } = await supabase.from("draw_results").insert(resultRows);
+    if (resultRows.length > 0) {
+      const { error: resultsError } = await supabase.from("draw_results").insert(resultRows);
 
-    if (resultsError) {
-      throw new HttpError("Failed to create draw results", 500, resultsError.message);
+      if (resultsError) {
+        throw new HttpError("Failed to create draw results", 500, resultsError.message);
+      }
     }
 
     if (drawMode === "card") {
-      const winnerRanks = new Map(
-        winners.map((participant, index) => [participant.id, index + 1]),
-      );
       const cardParticipants = secureShuffle(participantRows);
-      const cardRows = cardParticipants.map((participant, index) => {
-        const winnerRank = winnerRanks.get(participant.id) ?? null;
-
-        return {
-          draw_id: draw.id,
-          participant_id: participant.id,
-          position: index + 1,
-          is_winner: winnerRank !== null,
-          winner_rank: winnerRank,
-          is_revealed: false,
-        };
-      });
+      const cardRows = cardParticipants.map((participant, index) => ({
+        draw_id: draw.id,
+        participant_id: participant.id,
+        position: index + 1,
+        is_winner: false,
+        winner_rank: null,
+        is_revealed: false,
+      }));
 
       const { error: cardsError } = await supabase.from("draw_cards").insert(cardRows);
 

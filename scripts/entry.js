@@ -43,7 +43,6 @@ const els = {
   eventPeriod: $("#eventPeriod"),
   entryForm: $("#entryForm"),
   nameInput: $("#nameInput"),
-  employeeNoInput: $("#employeeNoInput"),
   submitEntryButton: $("#submitEntryButton"),
   entryMessage: $("#entryMessage"),
   drawPanel: $("#drawPanel"),
@@ -53,7 +52,6 @@ const els = {
 
 function setEntryEnabled(enabled) {
   els.nameInput.disabled = !enabled;
-  els.employeeNoInput.disabled = !enabled;
   els.submitEntryButton.disabled = !enabled;
 }
 
@@ -101,7 +99,9 @@ function renderDraw() {
     results: state.results,
     cards: state.cards,
   });
-  renderResultsList(els.resultList, state.results);
+  renderResultsList(els.resultList, state.results, {
+    showRank: state.draw?.draw_mode !== "card",
+  });
 }
 
 async function refreshDrawData() {
@@ -191,7 +191,6 @@ async function loadRoom(code) {
     }
 
     state.room = room;
-    localStorage.setItem("instant_draw_room_code", room.code);
     els.roomCodeInput.value = room.code;
     renderRoom();
     setMessage(els.entryMessage, `${room.code} 이벤트에 입장했습니다.`, "success");
@@ -253,7 +252,6 @@ async function handleEntrySubmit(event) {
     const response = await submitEntry({
       room_code: state.room.code,
       name: els.nameInput.value,
-      employee_no: els.employeeNoInput.value,
     });
 
     els.participantCount.textContent = String(response.current_count);
@@ -267,7 +265,40 @@ async function handleEntrySubmit(event) {
   }
 }
 
+function clearRoomState() {
+  state.loadRequestId += 1;
+  state.room = null;
+  state.draw = null;
+  state.results = [];
+  state.cards = [];
+  els.roomCodeInput.value = "";
+  els.nameInput.value = "";
+  setMessage(els.entryMessage, "");
+
+  window.clearInterval(state.countTimer);
+  window.clearInterval(state.drawTimer);
+
+  if (state.roomChannel) {
+    unsubscribe(state.roomChannel);
+    state.roomChannel = null;
+  }
+
+  if (state.drawChannel) {
+    unsubscribe(state.drawChannel);
+    state.drawChannel = null;
+  }
+
+  renderRoom();
+  renderDraw();
+}
+
 function bindEvents() {
+  const brandLink = document.querySelector(".brand");
+  brandLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    clearRoomState();
+  });
+
   els.loadRoomButton.addEventListener("click", () => loadRoom(els.roomCodeInput.value));
   els.roomCodeInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -286,7 +317,6 @@ function init() {
   const initialCode =
     getQueryParam("room") ||
     getQueryParam("code") ||
-    localStorage.getItem("instant_draw_room_code") ||
     "";
 
   if (initialCode) {

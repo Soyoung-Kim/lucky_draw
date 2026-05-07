@@ -28,8 +28,11 @@ export function renderDrawStage(container, state) {
   renderCapsule(container, state);
 }
 
-export function renderResultsList(container, results = []) {
+export function renderResultsList(container, results = [], options = {}) {
   if (!container) return;
+
+  const showRank = options.showRank !== false;
+  container.classList.toggle("plain-results", !showRank);
 
   if (results.length === 0) {
     container.innerHTML = "";
@@ -37,6 +40,8 @@ export function renderResultsList(container, results = []) {
   }
 
   container.innerHTML = results
-    .map((result) => `<li>${result.rank}등 ${result.participant_name}</li>`)
+    .map((result) =>
+      showRank ? `<li>${result.rank}등 ${result.participant_name}</li>` : `<li>${result.participant_name}</li>`,
+    )
     .join("");
 }

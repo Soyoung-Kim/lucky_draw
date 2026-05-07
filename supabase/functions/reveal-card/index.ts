@@ -1,4 +1,5 @@
 import { verifyAdminAccess } from "../_shared/admin.ts";
+import { sha256Hex } from "../_shared/crypto.ts";
 import { HttpError, jsonResponse, readJson, withJsonHandler } from "../_shared/http.ts";
 import { getServiceClient } from "../_shared/supabase.ts";
 import { requiredPositiveInteger, requiredText } from "../_shared/validation.ts";
@@ -13,7 +14,7 @@ Deno.serve((req) =>
 
     const { data: draw, error: drawError } = await supabase
       .from("draws")
-      .select("id, room_id, status, draw_mode")
+      .select("id, room_id, status, draw_mode, winner_count")
       .eq("id", drawId)
       .maybeSingle();
 
@@ -53,9 +54,25 @@ Deno.serve((req) =>
 
     if (!card.is_revealed) {
       const revealedAt = new Date().toISOString();
+      const { count: selectedCount, error: selectedCountError } = await supabase
+        .from("draw_results")
+        .select("id", { count: "exact", head: true })
+        .eq("draw_id", draw.id);
+
+      if (selectedCountError) {
+        throw new HttpError("Failed to count selected cards", 500, selectedCountError.message);
+      }
+
+      if ((selectedCount ?? 0) >= draw.winner_count) {
+        throw new HttpError("선택한 당첨자 수가 이미 충족되었습니다", 409);
+      }
+
+      const selectedOrder = (selectedCount ?? 0) + 1;
       const { data: updatedCard, error: updateError } = await supabase
         .from("draw_cards")
         .update({
+          is_winner: true,
+          winner_rank: selectedOrder,
           is_revealed: true,
           revealed_at: revealedAt,
         })
@@ -75,31 +92,46 @@ Deno.serve((req) =>
       revealedCard = updatedCard;
       changed = true;
 
-      if (updatedCard.is_winner) {
-        const { error: resultError } = await supabase
-          .from("draw_results")
-          .update({
-            is_revealed: true,
-            revealed_at: revealedAt,
-          })
-          .eq("draw_id", draw.id)
-          .eq("participant_id", updatedCard.participant_id)
-          .eq("is_revealed", false);
+      const { error: resultError } = await supabase.from("draw_results").insert({
+        draw_id: draw.id,
+        participant_id: updatedCard.participant_id,
+        rank: selectedOrder,
+        is_revealed: true,
+        revealed_at: revealedAt,
+      });
 
-        if (resultError) {
-          throw new HttpError("Failed to reveal linked winner result", 500, resultError.message);
+      if (resultError) {
+        if (resultError.code === "23505") {
+          throw new HttpError("Selected card conflicts with an existing result", 409);
         }
+
+        throw new HttpError("Failed to create selected card result", 500, resultError.message);
       }
 
-      if (draw.status === "created") {
-        const { error: statusError } = await supabase
-          .from("draws")
-          .update({ status: "revealing" })
-          .eq("id", draw.id);
+      const { data: currentResults, error: currentResultsError } = await supabase
+        .from("draw_results")
+        .select("participant_id, rank")
+        .eq("draw_id", draw.id)
+        .order("rank", { ascending: true });
 
-        if (statusError) {
-          throw new HttpError("Failed to update draw status", 500, statusError.message);
-        }
+      if (currentResultsError) {
+        throw new HttpError("Failed to load selected card results", 500, currentResultsError.message);
+      }
+
+      const resultHash = await sha256Hex(JSON.stringify(currentResults ?? []));
+      const drawUpdate: Record<string, string> = { result_hash: resultHash };
+
+      if (draw.status === "created") {
+        drawUpdate.status = "revealing";
+      }
+
+      const { error: drawUpdateError } = await supabase
+        .from("draws")
+        .update(drawUpdate)
+        .eq("id", draw.id);
+
+      if (drawUpdateError) {
+        throw new HttpError("Failed to update draw", 500, drawUpdateError.message);
       }
     }
 
@@ -123,7 +155,7 @@ Deno.serve((req) =>
           participant_id: revealedCard.participant_id,
           position: revealedCard.position,
           is_winner: revealedCard.is_winner,
-          winner_rank: revealedCard.winner_rank,
+          selected_order: revealedCard.winner_rank,
         },
       });
 
@@ -141,6 +173,7 @@ Deno.serve((req) =>
         participant_name: participant.name,
         is_winner: revealedCard.is_winner,
         winner_rank: revealedCard.winner_rank,
+        selected_order: revealedCard.winner_rank,
         is_revealed: revealedCard.is_revealed,
         revealed_at: revealedCard.revealed_at,
       },

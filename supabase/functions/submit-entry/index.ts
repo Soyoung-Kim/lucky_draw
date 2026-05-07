@@ -7,7 +7,6 @@ Deno.serve((req) =>
     const body = await readJson(req);
     const roomCode = requiredText(body.room_code, "room_code", 80).toUpperCase();
     const name = requiredText(body.name, "name", 50);
-    const employeeNo = requiredText(body.employee_no, "employee_no", 50);
     const supabase = getServiceClient();
 
     const { data: room, error: roomError } = await supabase
@@ -41,14 +40,13 @@ Deno.serve((req) =>
       .insert({
         room_id: room.id,
         name,
-        employee_no: employeeNo,
       })
       .select("id")
       .single();
 
     if (insertError) {
       if (insertError.code === "23505") {
-        throw new HttpError("이미 응모되었습니다", 409);
+        throw new HttpError("이미 같은 이름으로 응모되었습니다", 409);
       }
 
       throw new HttpError("Failed to submit entry", 500, insertError.message);
@@ -69,7 +67,6 @@ Deno.serve((req) =>
       payload: {
         participant_id: participant.id,
         name,
-        employee_no: employeeNo,
         current_count: count ?? 0,
       },
     });

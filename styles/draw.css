@@ -33,6 +33,10 @@
   list-style-position: inside;
 }
 
+.result-list.plain-results {
+  list-style: none;
+}
+
 .result-list li {
   border: 1px solid var(--line);
   border-radius: 16px;

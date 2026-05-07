@@ -10,14 +10,13 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
     const isRevealed = Boolean(card);
     const isWinner = Boolean(card?.is_winner);
     const disabled = !onCardClick || isRevealed ? "disabled" : "";
-    const winnerLabel = isWinner && card.winner_rank ? `${card.winner_rank}등` : "";
 
     nodes.push(`
       <button class="flip-card ${isRevealed ? "revealed" : ""} ${isWinner ? "winner" : ""}" data-position="${position}" ${disabled} type="button">
         <span class="flip-inner">
           <span class="flip-front">${position}</span>
           <span class="flip-back">
-            ${isRevealed ? `${winnerLabel}<br />${safeText(card.participant_name)}` : ""}
+            ${isRevealed ? safeText(card.participant_name) : ""}
           </span>
         </span>
       </button>

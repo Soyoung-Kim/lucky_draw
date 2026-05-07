@@ -55,17 +55,20 @@ Deno.serve((req) =>
     }
 
     const revealedAt = new Date().toISOString();
-    const { error: resultsError } = await supabase
-      .from("draw_results")
-      .update({
-        is_revealed: true,
-        revealed_at: revealedAt,
-      })
-      .eq("draw_id", draw.id)
-      .eq("is_revealed", false);
 
-    if (resultsError) {
-      throw new HttpError("Failed to reveal draw results", 500, resultsError.message);
+    if (draw.draw_mode !== "card") {
+      const { error: resultsError } = await supabase
+        .from("draw_results")
+        .update({
+          is_revealed: true,
+          revealed_at: revealedAt,
+        })
+        .eq("draw_id", draw.id)
+        .eq("is_revealed", false);
+
+      if (resultsError) {
+        throw new HttpError("Failed to reveal draw results", 500, resultsError.message);
+      }
     }
 
     if (draw.draw_mode === "card") {
