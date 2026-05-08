@@ -77,6 +77,7 @@ Deno.serve((req) =>
         .update({
           is_revealed: true,
           revealed_at: revealedAt,
+          card_status: "revealed",
         })
         .eq("draw_id", draw.id)
         .eq("is_revealed", false);

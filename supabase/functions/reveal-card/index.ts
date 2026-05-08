@@ -36,7 +36,7 @@ Deno.serve((req) =>
 
     const { data: card, error: cardError } = await supabase
       .from("draw_cards")
-      .select("id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at")
+      .select("id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at, card_status")
       .eq("draw_id", draw.id)
       .eq("position", position)
       .maybeSingle();
@@ -75,10 +75,11 @@ Deno.serve((req) =>
           winner_rank: selectedOrder,
           is_revealed: true,
           revealed_at: revealedAt,
+          card_status: "revealed",
         })
         .eq("id", card.id)
         .eq("is_revealed", false)
-        .select("id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at")
+        .select("id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at, card_status")
         .maybeSingle();
 
       if (updateError) {

@@ -156,9 +156,9 @@ export async function fetchRevealedCards(drawId) {
   assertConfigured();
   const { data, error } = await supabaseClient
     .from("draw_cards")
-    .select("id, draw_id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at")
+    .select("id, draw_id, participant_id, position, is_winner, winner_rank, is_revealed, revealed_at, card_status")
     .eq("draw_id", drawId)
-    .eq("is_revealed", true)
+    .neq("card_status", "unrevealed")
     .order("position", { ascending: true });
 
   if (error) throw new Error(error.message);

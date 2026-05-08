@@ -81,10 +81,11 @@ Deno.serve((req) =>
         .update({
           is_revealed: true,
           revealed_at: revealedAt,
+          card_status: \"revealed\",
         })
-        .eq("draw_id", draw.id)
-        .eq("participant_id", revealedResult.participant_id)
-        .select("id, position, is_winner, winner_rank, is_revealed, revealed_at")
+        .eq(\"draw_id\", draw.id)
+        .eq(\"participant_id\", revealedResult.participant_id)
+        .select(\"id, position, is_winner, winner_rank, is_revealed, revealed_at, card_status\")
         .maybeSingle();
 
       if (cardError) {
