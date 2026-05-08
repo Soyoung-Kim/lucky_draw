@@ -26,8 +26,6 @@ import {
   toIsoFromLocalInput,
 } from "./utils.js";
 
-const SESSION_KEY = "instant_draw_admin_session";
-
 const state = {
   session: null,
   rooms: [],
@@ -40,10 +38,16 @@ const state = {
   countTimer: null,
   drawTimer: null,
   autoRevealRunning: false,
+  manualParticipantCount: null,
 };
 
 const els = {
   adminStateBadge: $("#adminStateBadge"),
+  adminLoginCard: $("#adminLoginCard"),
+  adminCreateRoomCard: $("#adminCreateRoomCard"),
+  adminControlCard: $("#adminControlCard"),
+  adminDrawCard: $("#adminDrawCard"),
+  adminPreviewSection: $("#adminPreviewSection"),
   adminLoginForm: $("#adminLoginForm"),
   adminIdInput: $("#adminIdInput"),
   adminPasswordInput: $("#adminPasswordInput"),
@@ -57,6 +61,7 @@ const els = {
   createRoomButton: $("#createRoomButton"),
   createRoomMessage: $("#createRoomMessage"),
   roomSelect: $("#roomSelect"),
+  roomParticipantCountInput: $("#roomParticipantCountInput"),
   adminParticipantCount: $("#adminParticipantCount"),
   adminRoomStatus: $("#adminRoomStatus"),
   refreshRoomsButton: $("#refreshRoomsButton"),
@@ -81,16 +86,18 @@ function toDateTimeLocalValue(date) {
 }
 
 function loadSession() {
-  try {
-    state.session = JSON.parse(localStorage.getItem(SESSION_KEY));
-  } catch {
-    state.session = null;
-  }
+  //세션 유지하고싶다면.
+  // try {
+  //   state.session = JSON.parse(localStorage.getItem(SESSION_KEY));
+  // } catch {
+  //   state.session = null;
+  // }
+  state.session = null;
+  state.manualParticipantCount = null;
 }
 
 function saveSession(session) {
   state.session = session;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   renderAdminState();
 }
 
@@ -105,14 +112,16 @@ function adminPayload() {
 }
 
 function renderAdminState() {
-  if (state.session?.admin_session_token) {
-    els.adminStateBadge.className = "status-pill open";
-    els.adminStateBadge.textContent = "로그인";
-    return;
-  }
+  const loggedIn = Boolean(state.session?.admin_session_token);
 
-  els.adminStateBadge.className = "status-pill";
-  els.adminStateBadge.textContent = "로그아웃";
+  els.adminStateBadge.className = loggedIn ? "status-pill open" : "status-pill";
+  els.adminStateBadge.textContent = loggedIn ? "로그인" : "로그아웃";
+
+  els.adminLoginCard.classList.toggle("is-hidden", loggedIn);
+  els.adminCreateRoomCard.classList.toggle("is-hidden", !loggedIn);
+  els.adminControlCard.classList.toggle("is-hidden", !loggedIn);
+  els.adminDrawCard.classList.toggle("is-hidden", !loggedIn);
+  els.adminPreviewSection.classList.toggle("is-hidden", !loggedIn);
 }
 
 function renderRoomOptions() {
@@ -151,6 +160,10 @@ function renderRoom() {
   }
 
   els.adminRoomStatus.textContent = statusLabel(room.status);
+  if (room.status === "closed" && state.manualParticipantCount != null) {
+    els.adminParticipantCount.textContent = String(state.manualParticipantCount);
+  }
+
   const entryUrl = new URL("./index.html", window.location.href);
   entryUrl.searchParams.set("room", room.code);
   els.shareEntryLink.href = entryUrl.href;
@@ -289,7 +302,8 @@ async function loadRooms(selectedRoomId = null) {
 
 function getWinnerCount() {
   if (els.winnerCountSelect.value === "custom") {
-    return Number(els.customWinnerCountInput.value);
+    const inputCount = Number(els.customWinnerCountInput.value);
+    return Number.isFinite(inputCount) && inputCount > 0 ? inputCount : 1;
   }
 
   return Number(els.winnerCountSelect.value);
@@ -383,6 +397,13 @@ async function handleCreateRoom(event) {
 
 async function handleCloseRoom() {
   if (!state.room) return;
+
+  const manualCount = Number(els.roomParticipantCountInput.value);
+  if (!Number.isFinite(manualCount) || manualCount <= 0) {
+    setMessage(els.drawAdminMessage, "종료 인원수를 입력해 주세요.", "error");
+    return;
+  }
+
   setButtonLoading(els.closeRoomButton, true, "마감 중");
 
   try {
@@ -390,9 +411,10 @@ async function handleCloseRoom() {
       ...adminPayload(),
       room_id: state.room.id,
     });
+    state.manualParticipantCount = manualCount;
     state.room.status = "closed";
     renderRoom();
-    setMessage(els.drawAdminMessage, "응모를 마감했습니다.", "success");
+    setMessage(els.drawAdminMessage, `${manualCount}명으로 응모를 마감했습니다.`, "success");
     await loadRooms(state.room.id);
   } catch (error) {
     setMessage(els.drawAdminMessage, error.message, "error");
@@ -563,7 +585,7 @@ function init() {
   renderAdminState();
   renderRoom();
   renderDraw();
-  els.customWinnerCountInput.disabled = true;
+  els.customWinnerCountInput.disabled = false;
   syncRevealModeControls();
 
   if (state.session?.admin_session_token) {
