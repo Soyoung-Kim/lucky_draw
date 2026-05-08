@@ -42,12 +42,14 @@
             <p class="eyebrow">Event</p>
             <h2>신규 이벤트</h2>
           </div>
-          <form id="createRoomForm" class="stack-form" autocomplete="off">
-            <label for="roomTitleInput">이벤트명</label>
-            <input id="roomTitleInput" name="title" placeholder="5월 타운홀 럭키드로우" required />
-            <label for="newRoomCodeInput">이벤트 코드</label>
-            <input id="newRoomCodeInput" name="code" placeholder="EVENT-001" />
-            <div class="two-col">
+          <button id="openCreateRoomPanelButton" class="btn primary" type="button">신규 이벤트 생성</button>
+          <div id="createRoomPanel" class="create-room-panel is-hidden">
+            <form id="createRoomForm" class="stack-form" autocomplete="off">
+              <label for="roomTitleInput">이벤트명</label>
+              <input id="roomTitleInput" name="title" placeholder="5월 타운홀 럭키드로우" required />
+              <label for="newRoomCodeInput">이벤트 코드</label>
+              <input id="newRoomCodeInput" name="code" placeholder="EVENT-001" />
+              <div class="two-col">
               <div>
                 <label for="startsAtInput">시작</label>
                 <input id="startsAtInput" name="starts_at" type="datetime-local" />
@@ -60,6 +62,7 @@
             <button id="createRoomButton" class="btn secondary" type="submit">이벤트 열기</button>
           </form>
           <div id="createRoomMessage" class="message" role="status" aria-live="polite"></div>
+          </div>
         </div>
 
         <div class="admin-card control-card" id="adminControlCard">

@@ -53,6 +53,8 @@ const els = {
   adminPasswordInput: $("#adminPasswordInput"),
   adminLoginButton: $("#adminLoginButton"),
   adminLoginMessage: $("#adminLoginMessage"),
+  openCreateRoomPanelButton: $("#openCreateRoomPanelButton"),
+  createRoomPanel: $("#createRoomPanel"),
   createRoomForm: $("#createRoomForm"),
   roomTitleInput: $("#roomTitleInput"),
   newRoomCodeInput: $("#newRoomCodeInput"),
@@ -109,6 +111,15 @@ function adminPayload() {
   return {
     admin_session_token: state.session.admin_session_token,
   };
+}
+
+function toggleCreateRoomPanel(open) {
+  const shouldOpen = typeof open === "boolean" ? open : els.createRoomPanel.classList.contains("is-hidden");
+  els.createRoomPanel.classList.toggle("is-hidden", !shouldOpen);
+  els.openCreateRoomPanelButton.textContent = shouldOpen ? "신규 이벤트 닫기" : "신규 이벤트 생성";
+  if (shouldOpen) {
+    els.roomTitleInput.focus();
+  }
 }
 
 function renderAdminState() {
@@ -387,6 +398,7 @@ async function handleCreateRoom(event) {
     setMessage(els.createRoomMessage, `${response.room.code} 이벤트가 열렸습니다.`, "success");
     els.createRoomForm.reset();
     setDefaultDates();
+    toggleCreateRoomPanel(false);
     await loadRooms(response.room.id);
   } catch (error) {
     setMessage(els.createRoomMessage, error.message, "error");
@@ -560,6 +572,7 @@ function setDefaultDates() {
 
 function bindEvents() {
   els.adminLoginForm.addEventListener("submit", handleAdminLogin);
+  els.openCreateRoomPanelButton.addEventListener("click", () => toggleCreateRoomPanel());
   els.createRoomForm.addEventListener("submit", handleCreateRoom);
   els.refreshRoomsButton.addEventListener("click", () => {
     loadRooms(state.room?.id).catch((error) => setMessage(els.drawAdminMessage, error.message, "error"));
@@ -585,6 +598,7 @@ function init() {
   renderAdminState();
   renderRoom();
   renderDraw();
+  toggleCreateRoomPanel(false);
   els.customWinnerCountInput.disabled = false;
   syncRevealModeControls();
 
