@@ -8,44 +8,6 @@ const statusClasses = {
   withdrawn: "revealed withdrawn",
 };
 
-/**
- * scaleX(0) → 콘텐츠 교체 → scaleX(1) 방식으로 카드를 뒤집습니다.
- * button 안에서 preserve-3d가 브라우저마다 무시되는 문제를 우회합니다.
- */
-function animateFlip(cardEl, isWinner, participantName) {
-  // 1단계: X축으로 납작하게 접기
-  cardEl.classList.add("flipping-out");
-
-  cardEl.addEventListener(
-    "transitionend",
-    () => {
-      // 2단계: 접혀있는 동안 뒷면 콘텐츠 교체 & 클래스 적용
-      cardEl.classList.remove("flipping-out");
-      cardEl.classList.add("revealed");
-      if (isWinner) cardEl.classList.add("winner");
-
-      const backEl = cardEl.querySelector(".flip-face-back");
-      if (backEl) backEl.textContent = participantName;
-
-      // 3단계: 다시 펼치기
-      // rAF 두 번으로 브라우저 paint 후 transition 트리거
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          cardEl.classList.add("flipping-in");
-          cardEl.addEventListener(
-            "transitionend",
-            () => {
-              cardEl.classList.remove("flipping-in");
-            },
-            { once: true },
-          );
-        });
-      });
-    },
-    { once: true },
-  );
-}
-
 export function renderCards(container, { draw, cards = [], onCardClick = null }) {
   const revealedByPosition = new Map(cards.map((card) => [card.position, card]));
   const total = draw?.participant_count || Math.max(cards.length, 1);
@@ -59,7 +21,6 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
     const isWinner = Boolean(card?.is_winner);
     const extraClass = statusClasses[status] + (isWinner ? " winner" : "");
 
-    // 이미 뒤집힌 카드는 뒷면 바로 표시 (애니메이션 없이)
     nodes.push(`
       <button
         class="flip-card ${extraClass}"
@@ -83,8 +44,7 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
     container.querySelectorAll(".flip-card:not([disabled])").forEach((cardButton) => {
       cardButton.addEventListener("click", () => {
         const position = Number(cardButton.dataset.position);
-        // 클릭 즉시 disabled 처리해서 중복 클릭 방지
-        cardButton.disabled = true;
+        cardButton.disabled = true; // 중복 클릭 방지
         onCardClick(position);
       });
     });
@@ -92,11 +52,47 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
 }
 
 /**
- * 서버 응답 후 특정 카드를 애니메이션으로 뒤집습니다.
- * admin.js의 handleCardClick에서 호출합니다.
+ * 서버 응답 후 해당 카드만 뒤집기 애니메이션 실행.
+ * @keyframes card-flip 의 40%(200ms) 지점에 .revealed 를 붙여
+ * 납작해진 순간 앞면→뒷면으로 교체.
+ * 애니메이션(500ms) 완료 후 onDone() 호출 → 그 후에 전체 재렌더.
  */
-export function flipCardInPlace(container, position, { isWinner, participantName }) {
+export function flipCardInPlace(container, position, { isWinner, participantName, onDone }) {
+  const ANIM_MS = 500;        // card-flip 총 길이
+  const REVEAL_MS = 200;      // 40% 지점 = scaleX(0) 순간
+
   const cardEl = container.querySelector(`.flip-card[data-position="${position}"]`);
-  if (!cardEl) return;
-  animateFlip(cardEl, isWinner, participantName);
+  if (!cardEl) {
+    // DOM에 없으면 그냥 동기화만
+    if (onDone) onDone();
+    return;
+  }
+
+  // 뒷면 텍스트 미리 세팅 (납작해지기 전에 값은 넣어두되 opacity:0 상태)
+  const backEl = cardEl.querySelector(".flip-face-back");
+  if (backEl) backEl.textContent = participantName;
+  if (isWinner) cardEl.classList.add("winner");
+
+  // 애니메이션 시작
+  cardEl.classList.add("flipping");
+
+  // 40% 지점: 납작해진 순간 revealed 추가 → 뒷면이 보이기 시작
+  const revealTimer = setTimeout(() => {
+    cardEl.classList.add("revealed");
+  }, REVEAL_MS);
+
+  // 500ms 후 flipping 제거 → 카드가 최종 뒤집힌 상태로 고정
+  const doneTimer = setTimeout(() => {
+    cardEl.classList.remove("flipping");
+    if (onDone) onDone();
+  }, ANIM_MS);
+
+  // animationend 로도 보험 처리 (혹시 타이머보다 먼저 끝나면)
+  cardEl.addEventListener("animationend", () => {
+    clearTimeout(revealTimer);
+    clearTimeout(doneTimer);
+    cardEl.classList.add("revealed");
+    cardEl.classList.remove("flipping");
+    if (onDone) onDone();
+  }, { once: true });
 }

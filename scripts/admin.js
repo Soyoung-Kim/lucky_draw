@@ -499,6 +499,8 @@ async function handleCardClick(position) {
     flipCardInPlace(els.adminDrawStage, position, {
       isWinner: response.card.is_winner,
       participantName: response.card.participant_name,
+      // 애니메이션(500ms) 끝난 뒤에 전체 상태 동기화 → 재렌더가 애니메이션 덮어쓰는 문제 방지
+      onDone: () => refreshLatestDraw().catch(console.error),
     });
 
     setMessage(
@@ -510,9 +512,6 @@ async function handleCardClick(position) {
     if (response.card.is_winner) {
       createSparkles(els.adminDrawStage);
     }
-
-    // 백그라운드에서 전체 상태 동기화 (다른 카드 상태 갱신)
-    refreshLatestDraw().catch(console.error);
   } catch (error) {
     // 실패 시 클릭한 카드 다시 활성화
     const cardEl = els.adminDrawStage.querySelector(`.flip-card[data-position="${position}"]`);
