@@ -38,7 +38,6 @@ const state = {
   countTimer: null,
   drawTimer: null,
   autoRevealRunning: false,
-  manualParticipantCount: null,
 };
 
 const els = {
@@ -63,7 +62,6 @@ const els = {
   createRoomButton: $("#createRoomButton"),
   createRoomMessage: $("#createRoomMessage"),
   roomSelect: $("#roomSelect"),
-  roomParticipantCountInput: $("#roomParticipantCountInput"),
   adminParticipantCount: $("#adminParticipantCount"),
   adminRoomStatus: $("#adminRoomStatus"),
   refreshRoomsButton: $("#refreshRoomsButton"),
@@ -95,7 +93,6 @@ function loadSession() {
   //   state.session = null;
   // }
   state.session = null;
-  state.manualParticipantCount = null;
 }
 
 function saveSession(session) {
@@ -171,10 +168,6 @@ function renderRoom() {
   }
 
   els.adminRoomStatus.textContent = statusLabel(room.status);
-  if (room.status === "closed" && state.manualParticipantCount != null) {
-    els.adminParticipantCount.textContent = String(state.manualParticipantCount);
-  }
-
   const entryUrl = new URL("./index.html", window.location.href);
   entryUrl.searchParams.set("room", room.code);
   els.shareEntryLink.href = entryUrl.href;
@@ -410,12 +403,6 @@ async function handleCreateRoom(event) {
 async function handleCloseRoom() {
   if (!state.room) return;
 
-  const manualCount = Number(els.roomParticipantCountInput.value);
-  if (!Number.isFinite(manualCount) || manualCount <= 0) {
-    setMessage(els.drawAdminMessage, "종료 인원수를 입력해 주세요.", "error");
-    return;
-  }
-
   setButtonLoading(els.closeRoomButton, true, "마감 중");
 
   try {
@@ -423,10 +410,9 @@ async function handleCloseRoom() {
       ...adminPayload(),
       room_id: state.room.id,
     });
-    state.manualParticipantCount = manualCount;
     state.room.status = "closed";
     renderRoom();
-    setMessage(els.drawAdminMessage, `${manualCount}명으로 응모를 마감했습니다.`, "success");
+    setMessage(els.drawAdminMessage, "응모를 마감했습니다.", "success");
     await loadRooms(state.room.id);
   } catch (error) {
     setMessage(els.drawAdminMessage, error.message, "error");

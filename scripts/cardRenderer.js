@@ -16,8 +16,8 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
   for (let position = 1; position <= total; position += 1) {
     const card = revealedByPosition.get(position);
     const status = card?.card_status || "unrevealed";
-    const isClickable = !onCardClick || status !== "unrevealed";
-    const disabled = isClickable ? "disabled" : "";
+    const isClickable = onCardClick && status === "unrevealed";
+    const disabled = isClickable ? "" : "disabled";
     const isWinner = Boolean(card?.is_winner);
 
     nodes.push(`
