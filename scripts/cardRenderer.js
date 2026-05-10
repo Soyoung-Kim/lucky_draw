@@ -22,10 +22,12 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
 
     nodes.push(`
       <button class="flip-card ${statusClasses[status]} ${isWinner ? "winner" : ""}" data-position="${position}" data-status="${status}" ${disabled} type="button">
-        <span class="flip-inner">
-          <span class="flip-front">${position}</span>
-          <span class="flip-back">
-            ${card ? safeText(card.participant_name) : ""}
+        <span class="flip-perspective">
+          <span class="flip-inner">
+            <span class="flip-front">${position}</span>
+            <span class="flip-back">
+              ${card ? safeText(card.participant_name) : ""}
+            </span>
           </span>
         </span>
       </button>
