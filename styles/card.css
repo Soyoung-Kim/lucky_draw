@@ -4,6 +4,7 @@
   gap: 14px;
 }
 
+/* ── 카드 버튼 래퍼 ── */
 .flip-card {
   position: relative;
   aspect-ratio: 3 / 4;
@@ -12,56 +13,40 @@
   border-radius: 18px;
   cursor: pointer;
   background: transparent;
-  /* perspective는 button에 두면 브라우저 호환성 문제로 3D가 동작 안함 */
-  /* .flip-perspective 래퍼로 이동 */
+  padding: 0;
+  /* scaleX 뒤집기 애니메이션 */
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
 }
 
 .flip-card:disabled {
   cursor: default;
 }
 
-.flip-card:not(:disabled):hover .flip-inner {
-  transform: translateY(-4px) rotateZ(-1deg);
+/* 호버: 미뒤집힌 카드만 살짝 들어올림 */
+.flip-card:not(:disabled):not(.revealed):hover {
+  transform: translateY(-6px) rotateZ(-1deg);
 }
 
-/* button 자식으로 perspective 컨텍스트를 분리하는 래퍼 */
-.flip-perspective {
-  position: absolute;
-  inset: 0;
-  perspective: 900px;
-}
-
-.flip-inner {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-  transition:
-    transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1),
-    filter 180ms ease;
-}
-
-.flip-card.revealed .flip-inner {
-  transform: rotateY(180deg);
-}
-
-.flip-front,
-.flip-back {
+/* ── 카드 면 (앞/뒤 공통) ── */
+.flip-face {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   border-radius: 16px;
   padding: 10px;
-  backface-visibility: hidden;
   border: 2px solid rgba(255, 255, 255, 0.8);
   box-shadow:
     0 16px 30px rgba(70, 52, 104, 0.18),
     inset 0 0 0 1px rgba(255, 255, 255, 0.22);
   text-align: center;
   font-weight: 950;
+  transition: opacity 120ms ease;
 }
 
-.flip-front {
+/* ── 앞면 ── */
+.flip-face-front {
   color: #fff;
   font-size: 1.45rem;
   text-shadow: 0 2px 8px rgba(35, 26, 52, 0.35);
@@ -70,44 +55,68 @@
     linear-gradient(135deg, #ff3d8b 0%, #ff9c2f 48%, #ffe14d 100%);
 }
 
-.flip-card:nth-child(5n + 2) .flip-front {
+.flip-card:nth-child(5n + 2) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #6d5dfc 0%, #00b8ff 52%, #3ff6b5 100%);
 }
 
-.flip-card:nth-child(5n + 3) .flip-front {
+.flip-card:nth-child(5n + 3) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #00c2a8 0%, #6cf04a 48%, #fff04c 100%);
 }
 
-.flip-card:nth-child(5n + 4) .flip-front {
+.flip-card:nth-child(5n + 4) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #ff5147 0%, #ff3fbc 52%, #9857ff 100%);
 }
 
-.flip-card:nth-child(5n) .flip-front {
+.flip-card:nth-child(5n) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #ffbe0b 0%, #fb5607 42%, #ff006e 100%);
 }
 
-.flip-back {
-  transform: rotateY(180deg);
-  color: #1f2433;
+/* ── 뒷면: 기본 숨김 ── */
+.flip-face-back {
+  opacity: 0;
+  color: #2a2a3a;
   font-size: 1rem;
-  line-height: 1.2;
+  font-weight: 800;
+  line-height: 1.3;
+  word-break: break-all;
+  /* 일반 뒤집힌 카드: 흐릿한 파스텔 */
   background:
-    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.9), transparent 22%),
-    linear-gradient(135deg, #ffffff 0%, #e5fff5 50%, #fff7c7 100%);
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.88), transparent 26%),
+    linear-gradient(135deg, #d6e4f7 0%, #c2d5ee 50%, #d0e8f8 100%);
 }
 
-.flip-card.winner .flip-back {
+/* ── 뒤집힌 상태 ── */
+.flip-card.revealed .flip-face-front {
+  opacity: 0;
+}
+.flip-card.revealed .flip-face-back {
+  opacity: 1;
+}
+
+/* ── 당첨 카드 뒷면: 골드/핑크 ── */
+.flip-card.winner .flip-face-back {
   color: #1f2433;
+  font-weight: 900;
   background:
     radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.95), transparent 22%),
     linear-gradient(135deg, #fff04c 0%, #ff9f1c 42%, #ff4d9d 100%);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* ── 뒤집기 애니메이션 클래스 (JS로 제어) ── */
+.flip-card.flipping-out {
+  transform: scaleX(0);
+  transition: transform 160ms cubic-bezier(0.4, 0, 1, 1);
+}
+.flip-card.flipping-in {
+  transform: scaleX(1);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
 }

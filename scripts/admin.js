@@ -15,6 +15,7 @@ import {
 } from "./api.js";
 import { CONFIG } from "./config.js";
 import { renderDrawStage, renderResultsList } from "./drawRenderer.js";
+import { flipCardInPlace } from "./cardRenderer.js";
 import { subscribeDraw, subscribeRoom, unsubscribe } from "./realtime.js";
 import {
   $,
@@ -493,7 +494,13 @@ async function handleCardClick(position) {
       draw_id: state.draw.id,
       position,
     });
-    await refreshLatestDraw();
+
+    // 서버 응답 즉시 해당 카드만 애니메이션으로 뒤집기
+    flipCardInPlace(els.adminDrawStage, position, {
+      isWinner: response.card.is_winner,
+      participantName: response.card.participant_name,
+    });
+
     setMessage(
       els.drawAdminMessage,
       response.card.is_winner ? `${response.card.participant_name} 선택됨` : `${position}번 카드 공개`,
@@ -503,7 +510,13 @@ async function handleCardClick(position) {
     if (response.card.is_winner) {
       createSparkles(els.adminDrawStage);
     }
+
+    // 백그라운드에서 전체 상태 동기화 (다른 카드 상태 갱신)
+    refreshLatestDraw().catch(console.error);
   } catch (error) {
+    // 실패 시 클릭한 카드 다시 활성화
+    const cardEl = els.adminDrawStage.querySelector(`.flip-card[data-position="${position}"]`);
+    if (cardEl) cardEl.disabled = false;
     setMessage(els.drawAdminMessage, error.message, "error");
   }
 }
