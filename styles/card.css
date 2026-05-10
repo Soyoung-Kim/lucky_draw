@@ -14,19 +14,19 @@
   cursor: pointer;
   background: transparent;
   padding: 0;
+  /* 호버 transition */
+  transition: transform 180ms ease;
 }
 
 .flip-card:disabled {
   cursor: default;
 }
 
-/* 호버: 미뒤집힌 카드만 살짝 들어올림 */
 .flip-card:not(:disabled):not(.revealed):hover {
   transform: translateY(-6px) rotateZ(-1deg);
-  transition: transform 180ms ease;
 }
 
-/* ── 카드 면 공통 ── */
+/* ── 앞면 / 뒷면 공통 ── */
 .flip-face {
   position: absolute;
   inset: 0;
@@ -50,6 +50,9 @@
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #ff3d8b 0%, #ff9c2f 48%, #ffe14d 100%);
+  /* scaleX 전환 */
+  transition: transform 220ms ease-in;
+  transform-origin: center;
 }
 
 .flip-card:nth-child(5n + 2) .flip-face-front {
@@ -57,46 +60,36 @@
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #6d5dfc 0%, #00b8ff 52%, #3ff6b5 100%);
 }
-
 .flip-card:nth-child(5n + 3) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #00c2a8 0%, #6cf04a 48%, #fff04c 100%);
 }
-
 .flip-card:nth-child(5n + 4) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #ff5147 0%, #ff3fbc 52%, #9857ff 100%);
 }
-
 .flip-card:nth-child(5n) .flip-face-front {
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 18%),
     linear-gradient(135deg, #ffbe0b 0%, #fb5607 42%, #ff006e 100%);
 }
 
-/* ── 뒷면: 기본 숨김 ── */
+/* ── 뒷면 ── */
 .flip-face-back {
-  opacity: 0;
-  pointer-events: none;
   color: #2a2a3a;
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.3;
   word-break: break-word;
+  /* 기본: 숨겨진 상태 (scaleX 0) */
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 220ms ease-out;
   background:
     radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.88), transparent 26%),
     linear-gradient(135deg, #d6e4f7 0%, #c2d5ee 50%, #d0e8f8 100%);
-}
-
-/* ── 뒤집힌 상태: 앞면 숨기고 뒷면 보이기 ── */
-.flip-card.revealed .flip-face-front {
-  opacity: 0;
-  pointer-events: none;
-}
-.flip-card.revealed .flip-face-back {
-  opacity: 1;
 }
 
 /* ── 당첨 카드 뒷면 ── */
@@ -109,19 +102,26 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-/* ── 뒤집기 keyframe 애니메이션 ── */
-@keyframes card-flip {
-  /* 0~40%: 앞면이 보이는 상태에서 납작해짐 */
-  0%   { transform: scaleX(1); }
-  40%  { transform: scaleX(0); }
-  /* 40%: 여기서 JS가 .revealed 클래스를 붙여 뒷면으로 교체 */
-  /* 41%: 여전히 납작한 상태 (뒷면) */
-  41%  { transform: scaleX(0); }
-  /* 41~100%: 뒤면이 보이는 상태로 펼쳐짐 */
-  100% { transform: scaleX(1); }
+/* ── 뒤집힌 상태 (revealed) ── */
+/* 앞면: scaleX 0으로 숨김, transition 없음 (이미 완료된 상태) */
+.flip-card.revealed .flip-face-front {
+  transform: scaleX(0);
+  transition: none;
+}
+/* 뒷면: scaleX 1으로 표시, transition 없음 (이미 완료된 상태) */
+.flip-card.revealed .flip-face-back {
+  transform: scaleX(1);
+  transition: none;
 }
 
-.flip-card.flipping {
-  animation: card-flip 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  cursor: default;
+/* ── 뒤집기 애니메이션 진행 중 (flipping) ── */
+/* 앞면이 접혀 들어감 */
+.flip-card.flipping .flip-face-front {
+  transform: scaleX(0);
+  transition: transform 220ms ease-in;
+}
+/* 뒷면이 펼쳐져 나옴 (220ms 딜레이: 앞면이 다 접힌 후 시작) */
+.flip-card.flipping .flip-face-back {
+  transform: scaleX(1);
+  transition: transform 220ms ease-out 220ms;
 }
