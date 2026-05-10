@@ -94,21 +94,13 @@
             <h2>추첨 메뉴</h2>
           </div>
           <form id="createDrawForm" class="stack-form">
-            <label for="winnerCountSelect">당첨자 수</label>
-            <div class="winner-count-row">
-              <select id="winnerCountSelect" name="winner_count">
-                <option value="1">1명</option>
-                <option value="3">3명</option>
-                <option value="5">5명</option>
-                <option value="custom">직접 입력</option>
-              </select>
-              <input id="customWinnerCountInput" type="number" min="1" placeholder="직접" />
-            </div>
+            <label for="customWinnerCountInput">참여자 수</label>
+            <input id="customWinnerCountInput" type="number" min="1" placeholder="예) 30" />
             <label for="drawModeSelect">추첨 UI</label>
             <select id="drawModeSelect" name="draw_mode">
-              <option value="capsule">capsule</option>
+              <!-- <option value="capsule">capsule</option> -->
               <option value="card">card</option>
-              <option value="lotto">lotto</option>
+              <!-- <option value="lotto">lotto</option> -->
             </select>
             <fieldset class="segmented-field">
               <legend>공개 방식</legend>
@@ -118,7 +110,7 @@
             <button id="createDrawButton" class="btn primary" type="submit">추첨 시작</button>
           </form>
           <div class="button-row reveal-actions">
-            <button id="revealNextButton" class="btn secondary" type="button">다음 공개</button>
+            <button id="revealNextButton" class="btn secondary is-hidden" type="button" style="display:none">다음 공개</button>
             <button id="revealAllButton" class="btn neutral" type="button">전체 공개</button>
             <button id="finishDrawButton" class="btn danger" type="button">추첨 종료</button>
           </div>

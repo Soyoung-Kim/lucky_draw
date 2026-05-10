@@ -63,7 +63,6 @@ const els = {
   closeRoomButton: $("#closeRoomButton"),
   shareEntryLink: $("#shareEntryLink"),
   createDrawForm: $("#createDrawForm"),
-  winnerCountSelect: $("#winnerCountSelect"),
   customWinnerCountInput: $("#customWinnerCountInput"),
   drawModeSelect: $("#drawModeSelect"),
   createDrawButton: $("#createDrawButton"),
@@ -284,11 +283,7 @@ async function loadRooms(selectedRoomId = null) {
 }
 
 function getWinnerCount() {
-  if (els.winnerCountSelect.value === "custom") {
-    return Number(els.customWinnerCountInput.value);
-  }
-
-  return Number(els.winnerCountSelect.value);
+  return Number(els.customWinnerCountInput.value);
 }
 
 async function runAutoReveal(drawId, winnerCount) {
@@ -528,9 +523,7 @@ function bindEvents() {
   els.revealNextButton.addEventListener("click", handleRevealNext);
   els.revealAllButton.addEventListener("click", handleRevealAll);
   els.finishDrawButton.addEventListener("click", handleFinishDraw);
-  els.winnerCountSelect.addEventListener("change", () => {
-    els.customWinnerCountInput.disabled = els.winnerCountSelect.value !== "custom";
-  });
+
 }
 
 function init() {
@@ -540,7 +533,7 @@ function init() {
   renderAdminState();
   renderRoom();
   renderDraw();
-  els.customWinnerCountInput.disabled = true;
+  els.customWinnerCountInput.disabled = false;
 
   if (state.session?.admin_session_token) {
     loadRooms().catch((error) => setMessage(els.drawAdminMessage, error.message, "error"));

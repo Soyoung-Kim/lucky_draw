@@ -53,11 +53,66 @@
   font-weight: 950;
 }
 
+/* ── Front face base colour (position-cycling palette) ──────────────────────
+   Only `background` is changed here. All transform / transition / 
+   backface-visibility rules above are untouched.                             */
 .flip-front {
   color: #fff;
+  /* default: warm coral-pink (fallback for browsers without :nth-child) */
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent),
-    linear-gradient(135deg, var(--pink-strong), #8fdcc9);
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #ff6b8a, #ff9a6c);
+}
+
+/* 7-colour cycle — every 7th card repeats the same hue family            */
+
+/* 1 — coral / orange-red */
+.card-board > .flip-card:nth-child(7n+1) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #ff6b8a, #ff9a6c);
+}
+
+/* 2 — amber / golden yellow */
+.card-board > .flip-card:nth-child(7n+2) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #f7b731, #ffd97d);
+}
+
+/* 3 — lime / fresh green */
+.card-board > .flip-card:nth-child(7n+3) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #20bf6b, #81ecb4);
+}
+
+/* 4 — sky / ocean blue */
+.card-board > .flip-card:nth-child(7n+4) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #0984e3, #74b9ff);
+}
+
+/* 5 — violet / purple */
+.card-board > .flip-card:nth-child(7n+5) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #a55eea, #d6aaff);
+}
+
+/* 6 — rose / hot pink */
+.card-board > .flip-card:nth-child(7n+6) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #e84393, #ff9fd6);
+}
+
+/* 7 — teal / cyan */
+.card-board > .flip-card:nth-child(7n+0) .flip-front {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 60%),
+    linear-gradient(145deg, #00b894, #55efc4);
 }
 
 .flip-back {
