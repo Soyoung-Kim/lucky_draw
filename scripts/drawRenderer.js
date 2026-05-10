@@ -37,6 +37,6 @@ export function renderResultsList(container, results = []) {
   }
 
   container.innerHTML = results
-    .map((result) => `<li>${result.rank}등 ${result.participant_name}</li>`)
+    .map((result) => `<li>${result.participant_name}</li>`)
     .join("");
 }

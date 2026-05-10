@@ -44,6 +44,10 @@ const state = {
 
 const els = {
   adminStateBadge: $("#adminStateBadge"),
+  loginCard: $("#loginCard"),
+  createRoomCard: $("#createRoomCard"),
+  controlCard: $("#controlCard"),
+  drawAdminCard: $("#drawAdminCard"),
   adminLoginForm: $("#adminLoginForm"),
   adminIdInput: $("#adminIdInput"),
   adminPasswordInput: $("#adminPasswordInput"),
@@ -104,14 +108,18 @@ function adminPayload() {
 }
 
 function renderAdminState() {
-  if (state.session?.admin_session_token) {
-    els.adminStateBadge.className = "status-pill open";
-    els.adminStateBadge.textContent = "로그인";
-    return;
-  }
+  const loggedIn = Boolean(state.session?.admin_session_token);
 
-  els.adminStateBadge.className = "status-pill";
-  els.adminStateBadge.textContent = "로그아웃";
+  // 상단 뱃지
+  els.adminStateBadge.className = loggedIn ? "status-pill open" : "status-pill";
+  els.adminStateBadge.textContent = loggedIn ? "로그인" : "로그아웃";
+
+  // 로그인 전: 로그인 카드만 표시
+  // 로그인 후: 로그인 카드 숨김, 나머지 3개 표시
+  els.loginCard.style.display      = loggedIn ? "none" : "";
+  els.createRoomCard.style.display = loggedIn ? "" : "none";
+  els.controlCard.style.display    = loggedIn ? "" : "none";
+  els.drawAdminCard.style.display  = loggedIn ? "" : "none";
 }
 
 function renderRoomOptions() {
