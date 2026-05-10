@@ -34,30 +34,31 @@
             <button id="backButton" class="btn ghost" type="button">&#8592; HOME</button>
           </div>
 
-          <div class="event-summary">
-            <p class="eyebrow">Company Event</p>
-            <h1 id="eventTitle">이벤트 코드를 입력해 주세요</h1>
-            <div class="metric-row">
-              <div class="metric">
-                <span class="metric-value" id="participantCount">0</span>
-                <span class="metric-label">응모수</span>
+          <div id="eventInfoSection" class="is-hidden">
+            <div class="event-summary">
+              <p class="eyebrow">Company Event</p>
+              <h1 id="eventTitle"></h1>
+              <div class="metric-row">
+                <div class="metric">
+                  <span class="metric-value" id="participantCount">0</span>
+                  <span class="metric-label">응모수</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-value" id="eventStateText">대기</span>
+                  <span class="metric-label">상태</span>
+                </div>
               </div>
-              <div class="metric">
-                <span class="metric-value" id="eventStateText">대기</span>
-                <span class="metric-label">상태</span>
-              </div>
+              <p id="eventPeriod" class="muted"></p>
             </div>
-            <p id="eventPeriod" class="muted"></p>
+
+            <form id="entryForm" class="entry-form" autocomplete="off">
+              <label for="nameInput">이름</label>
+              <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
+              <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
+            </form>
+
+            <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
           </div>
-
-          <form id="entryForm" class="entry-form" autocomplete="off">
-            <label for="nameInput">이름</label>
-            <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
-
-            <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
-          </form>
-
-          <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
         </div>
       </section>
 

@@ -84,16 +84,14 @@ function toDateTimeLocalValue(date) {
 }
 
 function loadSession() {
-  try {
-    state.session = JSON.parse(localStorage.getItem(SESSION_KEY));
-  } catch {
-    state.session = null;
-  }
+  // 세션을 localStorage에 유지하지 않음 — 새로고침/이탈 시 항상 재로그인
+  state.session = null;
+  localStorage.removeItem(SESSION_KEY);
 }
 
 function saveSession(session) {
+  // 메모리에만 보관 (localStorage 저장 안 함)
   state.session = session;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   renderAdminState();
 }
 

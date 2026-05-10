@@ -44,6 +44,7 @@ const els = {
   roomLoaderSection: $("#roomLoaderSection"),
   roomLoadedSection: $("#roomLoadedSection"),
   backButton: $("#backButton"),
+  eventInfoSection: $("#eventInfoSection"),
   entryForm: $("#entryForm"),
   nameInput: $("#nameInput"),
   submitEntryButton: $("#submitEntryButton"),
@@ -58,16 +59,35 @@ function setEntryEnabled(enabled) {
   els.submitEntryButton.disabled = !enabled;
 }
 
+function pushRoomUrl(code) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("room", code);
+  window.history.pushState({ room: code }, "", url.toString());
+}
+
+function clearRoomUrl() {
+  const url = new URL(window.location.href);
+  url.search = "";
+  // index.html로 URL 복원 (쿼리스트링 제거)
+  window.history.pushState({}, "", url.pathname);
+}
+
 function showRoomLoaded() {
   els.roomLoaderSection.classList.add("is-hidden");
   els.roomLoadedSection.classList.remove("is-hidden");
+  els.eventInfoSection.classList.remove("is-hidden");
 }
 
 function showRoomLoader() {
   els.roomLoadedSection.classList.add("is-hidden");
   els.roomLoaderSection.classList.remove("is-hidden");
+  els.eventInfoSection.classList.add("is-hidden");
 
-  // reset room state
+  // URL을 index.html (쿼리 없음)으로 복원
+  clearRoomUrl();
+
+  // 상태 초기화
   if (state.roomChannel) {
     unsubscribe(state.roomChannel);
     state.roomChannel = null;
@@ -103,7 +123,6 @@ function renderRoom() {
   const room = state.room;
 
   if (!room) {
-    els.eventTitle.textContent = "이벤트 코드를 입력해 주세요";
     els.participantCount.textContent = "0";
     els.eventStateText.textContent = "대기";
     els.eventPeriod.textContent = "";
@@ -225,6 +244,8 @@ async function loadRoom(code) {
     state.room = room;
     localStorage.setItem("instant_draw_room_code", room.code);
     els.roomCodeInput.value = room.code;
+    // URL을 ?room=CODE로 업데이트
+    pushRoomUrl(room.code);
     renderRoom();
     showRoomLoaded();
     setMessage(els.entryMessage, `${room.code} 이벤트에 입장했습니다.`, "success");
@@ -309,6 +330,17 @@ function bindEvents() {
   });
   els.backButton.addEventListener("click", showRoomLoader);
   els.entryForm.addEventListener("submit", handleEntrySubmit);
+
+  // 브라우저 뒤로가기/앞으로가기 처리
+  window.addEventListener("popstate", (event) => {
+    if (event.state?.room) {
+      // 앞으로가기: 해당 room 재로드
+      loadRoom(event.state.room);
+    } else {
+      // 뒤로가기: 코드 입력 화면으로
+      showRoomLoader();
+    }
+  });
 }
 
 function init() {
