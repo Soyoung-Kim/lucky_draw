@@ -41,9 +41,11 @@ const els = {
   participantCount: $("#participantCount"),
   eventStateText: $("#eventStateText"),
   eventPeriod: $("#eventPeriod"),
+  roomLoaderSection: $("#roomLoaderSection"),
+  roomLoadedSection: $("#roomLoadedSection"),
+  backButton: $("#backButton"),
   entryForm: $("#entryForm"),
   nameInput: $("#nameInput"),
-  employeeNoInput: $("#employeeNoInput"),
   submitEntryButton: $("#submitEntryButton"),
   entryMessage: $("#entryMessage"),
   drawPanel: $("#drawPanel"),
@@ -53,8 +55,38 @@ const els = {
 
 function setEntryEnabled(enabled) {
   els.nameInput.disabled = !enabled;
-  els.employeeNoInput.disabled = !enabled;
   els.submitEntryButton.disabled = !enabled;
+}
+
+function showRoomLoaded() {
+  els.roomLoaderSection.classList.add("is-hidden");
+  els.roomLoadedSection.classList.remove("is-hidden");
+}
+
+function showRoomLoader() {
+  els.roomLoadedSection.classList.add("is-hidden");
+  els.roomLoaderSection.classList.remove("is-hidden");
+
+  // reset room state
+  if (state.roomChannel) {
+    unsubscribe(state.roomChannel);
+    state.roomChannel = null;
+  }
+  if (state.drawChannel) {
+    unsubscribe(state.drawChannel);
+    state.drawChannel = null;
+  }
+  window.clearInterval(state.countTimer);
+  window.clearInterval(state.drawTimer);
+  state.room = null;
+  state.draw = null;
+  state.results = [];
+  state.cards = [];
+  localStorage.removeItem("instant_draw_room_code");
+  els.roomCodeInput.value = "";
+  setMessage(els.entryMessage, "");
+  renderRoom();
+  renderDraw();
 }
 
 function canShowDrawPanel() {
@@ -194,6 +226,7 @@ async function loadRoom(code) {
     localStorage.setItem("instant_draw_room_code", room.code);
     els.roomCodeInput.value = room.code;
     renderRoom();
+    showRoomLoaded();
     setMessage(els.entryMessage, `${room.code} 이벤트에 입장했습니다.`, "success");
 
     if (state.roomChannel) {
@@ -253,7 +286,6 @@ async function handleEntrySubmit(event) {
     const response = await submitEntry({
       room_code: state.room.code,
       name: els.nameInput.value,
-      employee_no: els.employeeNoInput.value,
     });
 
     els.participantCount.textContent = String(response.current_count);
@@ -275,6 +307,7 @@ function bindEvents() {
       loadRoom(els.roomCodeInput.value);
     }
   });
+  els.backButton.addEventListener("click", showRoomLoader);
   els.entryForm.addEventListener("submit", handleEntrySubmit);
 }
 

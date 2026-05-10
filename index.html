@@ -23,12 +23,15 @@
     <main id="appShell" class="app-shell app-shell-single">
       <section class="entry-hero">
         <div class="event-card">
-          <div class="room-loader">
+          <div id="roomLoaderSection" class="room-loader">
             <label for="roomCodeInput">이벤트 코드</label>
             <div class="inline-form">
               <input id="roomCodeInput" name="room_code" autocomplete="off" placeholder="EVENT-001" />
               <button id="loadRoomButton" class="btn secondary" type="button">입장</button>
             </div>
+          </div>
+          <div id="roomLoadedSection" class="room-loaded-bar is-hidden">
+            <button id="backButton" class="btn ghost" type="button">&#8592; 코드 입력으로 돌아가기</button>
           </div>
 
           <div class="event-summary">
@@ -50,9 +53,6 @@
           <form id="entryForm" class="entry-form" autocomplete="off">
             <label for="nameInput">이름</label>
             <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
-
-            <label for="employeeNoInput">사번</label>
-            <input id="employeeNoInput" name="employee_no" placeholder="A12345" maxlength="50" required />
 
             <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
           </form>

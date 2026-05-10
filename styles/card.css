@@ -4,21 +4,28 @@
   gap: 12px;
 }
 
+/* ── Card shell ─────────────────────────────────────────────────────────────
+   MUST be a <div>, not <button>.
+   Chrome/Safari refuse preserve-3d inside <button>, so the 3-D flip simply
+   never fires. A <div role="button"> has no such restriction.
+   perspective lives here (on the parent) so the child can rotate in 3-D.    */
 .flip-card {
   position: relative;
   aspect-ratio: 3 / 4;
   min-height: 104px;
-  border: 0;
   border-radius: 16px;
   cursor: pointer;
   background: transparent;
-  perspective: 900px;
+  perspective: 900px;        /* must be on the PARENT of the rotating element */
+  outline: none;
 }
 
-.flip-card:disabled {
+.flip-card[aria-disabled="true"] {
   cursor: default;
 }
 
+/* ── Rotating inner container ───────────────────────────────────────────────
+   preserve-3d works here because the parent is a <div>, not a <button>.    */
 .flip-inner {
   position: absolute;
   inset: 0;
@@ -30,6 +37,7 @@
   transform: rotateY(180deg);
 }
 
+/* ── Front & back faces ─────────────────────────────────────────────────── */
 .flip-front,
 .flip-back {
   position: absolute;
@@ -39,6 +47,7 @@
   border-radius: 16px;
   padding: 9px;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;   /* Safari */
   box-shadow: var(--shadow-soft);
   text-align: center;
   font-weight: 950;
@@ -54,9 +63,34 @@
 .flip-back {
   transform: rotateY(180deg);
   background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.flip-back .winner-rank {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #8a5b00;
+  line-height: 1;
+}
+
+.flip-back .card-name {
+  font-size: clamp(0.65rem, 1.8vw, 0.85rem);
+  font-weight: 900;
+  word-break: break-all;
+  line-height: 1.2;
 }
 
 .flip-card.winner .flip-back {
   background: linear-gradient(135deg, var(--yellow), #fff8cf);
   color: #8a5b00;
+}
+
+/* Focus ring for keyboard navigation */
+.flip-card:not([aria-disabled="true"]):focus-visible {
+  outline: 3px solid var(--pink-strong);
+  outline-offset: 2px;
 }

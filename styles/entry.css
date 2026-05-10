@@ -23,6 +23,25 @@
   margin-bottom: 24px;
 }
 
+.room-loaded-bar {
+  margin-bottom: 20px;
+}
+
+.room-loaded-bar .btn.ghost {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.room-loaded-bar .btn.ghost:hover {
+  color: var(--fg);
+}
+
 .event-summary h1 {
   margin-bottom: 16px;
   font-size: clamp(2rem, 7vw, 4.2rem);
