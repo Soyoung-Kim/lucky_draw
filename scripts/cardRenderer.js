@@ -33,7 +33,9 @@ export function renderCards(container, { draw, cards = [], onCardClick = null })
     const card = revealedByPosition.get(position);
     const isRevealed = Boolean(card);
     const isWinner = Boolean(card?.is_winner);
-    const winnerLabel = isWinner && card.winner_rank ? `${card.winner_rank}등` : "";
+    // const winnerLabel = isWinner && card.winner_rank ? `${card.winner_rank}등` : "";
+    // 일단 수정
+    const winnerLabel = isWinner && card.winner_rank ? "" : "";
 
     let el = board.querySelector(`.flip-card[data-position="${position}"]`);
 
