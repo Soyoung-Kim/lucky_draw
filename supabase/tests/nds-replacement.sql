@@ -1,0 +1,26 @@
+begin;
+do $$
+declare e uuid; a uuid; b uuid; w uuid; r jsonb; replacement uuid;
+begin
+  r:=public.nds_lucky_100_admin('create',null,'test','{"title":"replacement test"}');e:=(r->'event'->>'id')::uuid;
+  r:=public.nds_lucky_100_public('register',e,'김민준',1);
+  r:=public.nds_lucky_100_public('register',e,'이서연',2);
+  select id into a from public.nds_lucky_100_participants where event_id=e and slot_number=1;
+  select id into b from public.nds_lucky_100_participants where event_id=e and slot_number=2;
+  r:=public.nds_lucky_100_admin('close',e,'test');
+  r:=public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',1,'candidate_ids',jsonb_build_array(a,b),'participant_ids',jsonb_build_array(a)));
+  w:=(r->'winners'->0->>'id')::uuid;
+  r:=public.nds_lucky_100_admin('replace',e,'test',jsonb_build_object('winner_id',w,'candidate_ids',jsonb_build_array(b),'participant_id',b));
+  assert (r->'replacement'->>'participant_id')::uuid=b;
+  replacement:=(r->'replacement'->>'id')::uuid;
+  assert (select status='absent' from public.nds_lucky_100_winners where id=w);
+  assert (select count(*)=2 from public.nds_lucky_100_winners where event_id=e);
+  r:=public.nds_lucky_100_admin('replace',e,'test',jsonb_build_object('winner_id',w));
+  assert (r->'replacement'->>'id')::uuid=replacement, 'repeat click creates another winner';
+  r:=public.nds_lucky_100_admin('replace',e,'test',jsonb_build_object('winner_id',replacement));
+  assert r->>'error'='NO_REMAINING_CANDIDATES';
+  r:=public.nds_lucky_100_admin('board',e,'test');
+  assert jsonb_array_length(r->'winners')=2;
+  assert r->'winners'->0->>'status'='absent';
+end $$;
+rollback;

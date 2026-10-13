@@ -40,10 +40,18 @@ begin
   return jsonb_build_object('own_slot',p_slot,'event_status',e.status);
 end; $$;
 
+alter table public.nds_lucky_100_winners add column if not exists status text not null default 'active' check(status in ('active','absent'));
+alter table public.nds_lucky_100_winners add column if not exists announcement_order integer;
+update public.nds_lucky_100_winners set announcement_order=prize_rank where announcement_order is null;
+alter table public.nds_lucky_100_winners alter column announcement_order set not null;
+alter table public.nds_lucky_100_winners add column if not exists replaces_winner_id uuid unique references public.nds_lucky_100_winners(id);
+alter table public.nds_lucky_100_winners drop constraint if exists nds_lucky_100_winners_event_id_prize_rank_key;
+create unique index if not exists nds_lucky_active_rank on public.nds_lucky_100_winners(event_id,prize_rank) where status='active';
+create unique index if not exists nds_lucky_announcement_order on public.nds_lucky_100_winners(event_id,announcement_order);
 create or replace function public.nds_lucky_100_admin(p_action text, p_event uuid, p_actor text, p_data jsonb default '{}')
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare e public.nds_lucky_100_events%rowtype; p public.nds_lucky_100_participants%rowtype;
-  v_name text; v_count integer; v_limit integer; v_ids uuid[]; v_results jsonb;
+  v_name text; v_count integer; v_limit integer; v_ids uuid[]; v_results jsonb; v_old public.nds_lucky_100_winners%rowtype; v_new public.nds_lucky_100_winners%rowtype;
 begin
   if p_action='create' then
     insert into public.nds_lucky_100_events(title,max_slots) values(btrim(p_data->>'title'),coalesce((p_data->>'max_slots')::integer,100)) returning * into e;
@@ -53,7 +61,7 @@ begin
     if p_action='board' then
       return jsonb_build_object('event',to_jsonb(e),'participants',
         (select coalesce(jsonb_agg(to_jsonb(t) order by t.slot_number),'[]') from public.nds_lucky_100_participants t where event_id=e.id),
-        'winners',(select coalesce(jsonb_agg(jsonb_build_object('prize_rank',w.prize_rank,'participant_id',participant_row.id,'slot_number',participant_row.slot_number,'display_name',participant_row.display_name) order by w.prize_rank),'[]')
+        'winners',(select coalesce(jsonb_agg(jsonb_build_object('id',w.id,'created_at',w.created_at,'status',w.status,'announcement_order',w.announcement_order,'replaces_winner_id',w.replaces_winner_id,'prize_rank',w.prize_rank,'participant_id',participant_row.id,'slot_number',participant_row.slot_number,'display_name',participant_row.display_name) order by w.announcement_order),'[]')
           from public.nds_lucky_100_winners w join public.nds_lucky_100_participants participant_row on participant_row.id=w.participant_id where w.event_id=e.id));
     elsif p_action='add_slots' then
       if e.status <> 'registration' then return jsonb_build_object('error','CLOSED'); end if;
@@ -106,8 +114,36 @@ begin
         or (select count(*) from public.nds_lucky_100_participants where event_id=e.id and id=any(v_ids)) <> v_limit then
         return jsonb_build_object('error','INVALID_CANDIDATES');
       end if;
-      insert into public.nds_lucky_100_winners(event_id,participant_id,prize_rank) select e.id,x,ordinality::integer from unnest(v_ids) with ordinality as t(x,ordinality);
+      insert into public.nds_lucky_100_winners(event_id,participant_id,prize_rank,announcement_order) select e.id,x,ordinality::integer,ordinality::integer from unnest(v_ids) with ordinality as t(x,ordinality);
       update public.nds_lucky_100_events set status='drawing',winner_limit=v_limit where id=e.id returning * into e;
+    elsif p_action='replace' then
+      if e.status not in ('drawing','completed') then return jsonb_build_object('error','NOT_DRAWING'); end if;
+      select * into v_old from public.nds_lucky_100_winners where event_id=e.id and id=(p_data->>'winner_id')::uuid;
+      if not found then return jsonb_build_object('error','WINNER_NOT_FOUND'); end if;
+      select * into v_new from public.nds_lucky_100_winners where replaces_winner_id=v_old.id;
+      if found then return jsonb_build_object('event',to_jsonb(e),'replacement',to_jsonb(v_new)); end if;
+      select count(*) into v_count from public.nds_lucky_100_participants pp where pp.event_id=e.id
+        and not exists(select 1 from public.nds_lucky_100_winners ww where ww.event_id=e.id and ww.participant_id=pp.id);
+      if v_count=0 then return jsonb_build_object('error','NO_REMAINING_CANDIDATES'); end if;
+      if jsonb_typeof(p_data->'candidate_ids') is distinct from 'array'
+        or jsonb_array_length(p_data->'candidate_ids')<>v_count
+        or (select count(distinct value::uuid) from jsonb_array_elements_text(p_data->'candidate_ids'))<>v_count
+        or exists(select pp.id from public.nds_lucky_100_participants pp where pp.event_id=e.id
+          and not exists(select 1 from public.nds_lucky_100_winners ww where ww.event_id=e.id and ww.participant_id=pp.id)
+          except select value::uuid from jsonb_array_elements_text(p_data->'candidate_ids')) then
+        return jsonb_build_object('error','CANDIDATES_CHANGED');
+      end if;
+      if not exists(select 1 from public.nds_lucky_100_participants pp where pp.event_id=e.id and pp.id=(p_data->>'participant_id')::uuid
+        and not exists(select 1 from public.nds_lucky_100_winners ww where ww.event_id=e.id and ww.participant_id=pp.id)) then
+        return jsonb_build_object('error','INVALID_CANDIDATES');
+      end if;
+      update public.nds_lucky_100_winners set status='absent' where id=v_old.id;
+      select coalesce(max(announcement_order),0)+1 into v_count from public.nds_lucky_100_winners where event_id=e.id;
+      insert into public.nds_lucky_100_winners(event_id,participant_id,prize_rank,announcement_order,replaces_winner_id)
+        values(e.id,(p_data->>'participant_id')::uuid,v_old.prize_rank,v_count,v_old.id) returning * into v_new;
+      update public.nds_lucky_100_events set status='drawing' where id=e.id returning * into e;
+      insert into public.nds_lucky_100_audit_logs(event_id,actor,action,details) values(e.id,p_actor,'replace',p_data||jsonb_build_object('absent_winner',to_jsonb(v_old),'replacement',to_jsonb(v_new)));
+      return jsonb_build_object('event',to_jsonb(e),'replacement',to_jsonb(v_new));
     elsif p_action='finish' then
       if e.status='completed' then return jsonb_build_object('event',to_jsonb(e)); end if;
       if e.status<>'drawing' then return jsonb_build_object('error','NOT_DRAWING'); end if;

@@ -6,6 +6,9 @@ const sessionKey = "nds_lucky_100_admin_session";
 let expiresAt = 0;
 let syncTask = null;
 let revealedCount = 0;
+let revealedOrders = new Set();
+const winnerOrder = (winner) => winner.announcement_order ?? winner.prize_rank;
+const wasRevealed = (winner) => revealedOrders.has(winnerOrder(winner));
 let inlineEditing = null;
 let events = [];
 const eventLabels = { registration: "진행중", closed: "접수마감", drawing: "추첨중", completed: "추첨완료" };
@@ -27,7 +30,10 @@ async function loadEventOptions() {
   events = data.events; renderEventOptions();
 }
 function rememberReveal() {
-  try { sessionStorage.setItem(`nds_reveal_${eventId}`, String(revealedCount)); } catch { /* Presentation still works without storage. */ }
+  try {
+    sessionStorage.setItem(`nds_reveal_${eventId}`, String(revealedCount));
+    sessionStorage.setItem(`nds_reveal_orders_${eventId}`, JSON.stringify([...revealedOrders]));
+  } catch { /* Presentation still works without storage. */ }
 }
 function clearSession() {
   expiresAt = 0;
@@ -78,6 +84,7 @@ function controls() {
   $("stageWinnerCount").value = $("winnerCount").value;
   $("finish").disabled = busy || status !== "drawing" || canReveal;
   $("csv").disabled = busy || !snapshot?.winners.length || canReveal;
+  document.querySelectorAll(".replace-winner").forEach((button) => { button.disabled = busy || !button.dataset.winnerId || !["drawing", "completed"].includes(status); });
   $("seedButton").disabled = busy || status !== "registration";
   $("testCount").disabled = busy || status !== "registration";
   $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
@@ -124,6 +131,7 @@ async function api(action, payload = {}) {
   if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
   if (data.error === "INVALID_ACTION") throw new Error("서버 API 또는 DB 함수에 이 기능이 반영되지 않았습니다. 최신 접수 재개 SQL 적용과 관리자 API 배포를 확인해 주세요.");
   if (data.error === "DB_UPDATE_REQUIRED") throw new Error("DB의 접수 재개 함수가 구버전입니다. 최신 접수 재개 SQL을 적용해 주세요.");
+  if (data.error === "NO_REMAINING_CANDIDATES") throw new Error("추가 추첨할 참가자가 없습니다. 모든 참가자가 이미 당첨자로 선정되었습니다.");
   if (data.error === "SLOT_TAKEN") throw new Error("다른 참가자가 먼저 등록한 번호입니다. 새로고침 후 빈 번호를 선택해 주세요.");
   if (data.details?.db_code === "23514") throw new Error("DB 제약조건이 당첨 인원 1~10명을 허용하지 않고 있습니다. 최신 repair-nds-admin.sql을 적용해 주세요.");
   if (!response.ok || data.success !== true) {
@@ -182,7 +190,7 @@ function render() {
       button.addEventListener("dblclick", () => beginInline(tile, n));
       button.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); beginInline(tile, n); } });
     }
-    if (winners.some((w) => w.prize_rank <= revealedCount && w.participant_id === p?.id)) tile.classList.add("winner");
+    if (winners.some((w) => wasRevealed(w) && w.status !== "absent" && w.participant_id === p?.id)) tile.classList.add("winner");
     $("board").append(tile);
   }
   renderWinners(); controls();
@@ -211,11 +219,27 @@ function beginInline(tile, slot) {
 }
 function renderWinners() {
   $("winners").replaceChildren();
-  for (const winner of [...snapshot.winners].sort((a, b) => a.prize_rank - b.prize_rank)) {
-    if (winner.prize_rank > revealedCount) continue;
+  for (const winner of [...snapshot.winners].sort((a, b) => winnerOrder(a) - winnerOrder(b))) {
+    if (!wasRevealed(winner)) continue;
     const p = snapshot.participants.find((row) => row.id === winner.participant_id);
     const item = document.createElement("li"); const number = document.createElement("strong"); number.textContent = `${p?.slot_number ?? winner.slot_number}번`;
     const text = document.createElement("span"); text.textContent = p?.display_name ?? winner.display_name; item.append(number, text); $("winners").append(item);
+    if (winner.status === "absent") {
+      item.classList.add("absent-winner");
+      const badge = document.createElement("small"); badge.textContent = "불참 · 대체 추첨 완료"; item.append(badge);
+    } else {
+      const replace = document.createElement("button"); replace.type = "button"; replace.className = "secondary replace-winner"; replace.textContent = "불참 · 추가 추첨";
+      replace.dataset.winnerId = winner.id ?? ""; replace.disabled = busy || !winner.id || !["drawing", "completed"].includes(snapshot.event.status);
+      replace.addEventListener("click", () => {
+        if (!confirm(`${p?.display_name ?? winner.display_name} 님을 불참 처리하고 대체 당첨자를 추첨하시겠습니까?`)) return;
+        run(async () => {
+          const result = await api("replace", { winner_id: winner.id });
+          await refresh();
+          await revealWinner(result.replacement.id);
+        });
+      });
+      item.append(replace);
+    }
   }
   $("announcement").textContent = revealedCount ? "✦ 당첨을 축하합니다!" : snapshot.winners.length ? "결과가 확정되었습니다. 한 명씩 공개해 주세요." : "";
 }
@@ -225,6 +249,12 @@ async function refresh(id = eventId) {
     let saved = 0;
     try { saved = Number(sessionStorage.getItem(`nds_reveal_${data.event.id}`)) || 0; } catch { /* Start from first winner. */ }
     revealedCount = data.event.status === "completed" ? data.winners.length : Math.max(0, Math.min(saved, data.winners.length));
+    let orders = null;
+    try { orders = JSON.parse(sessionStorage.getItem(`nds_reveal_orders_${data.event.id}`)); } catch { /* Legacy numeric progress. */ }
+    revealedOrders = new Set(data.event.status === "completed" ? data.winners.map(winnerOrder)
+      : Array.isArray(orders) ? orders.filter((order) => data.winners.some((w) => winnerOrder(w) === order))
+      : [...data.winners].sort((a, b) => winnerOrder(a) - winnerOrder(b)).slice(0, revealedCount).map(winnerOrder));
+    revealedCount = revealedOrders.size;
   }
   const changed = JSON.stringify(snapshot) !== JSON.stringify(data);
   eventId = data.event.id; snapshot = data;
@@ -367,8 +397,9 @@ function celebrateWinner() {
   $("winnerPopup").append(layer);
   setTimeout(() => layer.remove(), 4200);
 }
-async function revealWinner() {
-  const winner = [...snapshot.winners].sort((a, b) => a.prize_rank - b.prize_rank)[revealedCount];
+async function revealWinner(targetId = null) {
+  const winner = targetId ? snapshot.winners.find((w) => w.id === targetId)
+    : [...snapshot.winners].sort((a, b) => winnerOrder(a) - winnerOrder(b)).find((w) => !wasRevealed(w));
   if (!winner) return;
   const participant = snapshot.participants.find((p) => p.id === winner.participant_id);
   if (!participant) throw new Error("당첨자 정보를 확인하지 못했습니다. 새로고침해 주세요.");
@@ -378,7 +409,7 @@ async function revealWinner() {
   $("popupTitle").textContent = "행운의 주인공은?";
   $("popupName").textContent = "두근두근…";
   $("popupProgress").textContent = `${revealedCount + 1} / ${snapshot.winners.length}명`;
-  const disclosed = new Set(snapshot.winners.filter((w) => w.prize_rank <= revealedCount).map((w) => w.participant_id));
+  const disclosed = new Set(snapshot.winners.filter(wasRevealed).map((w) => w.participant_id));
   const candidates = snapshot.participants.filter((p) => !disclosed.has(p.id));
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 3000;
   const start = performance.now();
@@ -425,7 +456,7 @@ async function revealWinner() {
     $("popupTitle").textContent = "✦ 당첨을 축하합니다!";
     $("winnerPopup").classList.add("celebrate");
     celebrateWinner();
-    revealedCount++; rememberReveal();
+    revealedOrders.add(winnerOrder(winner)); revealedCount = revealedOrders.size; rememberReveal();
   } finally { animating = false; render(); }
 }
 $("draw").addEventListener("click", () => {
@@ -438,8 +469,8 @@ $("draw").addEventListener("click", () => {
   });
 });
 $("stageDraw").addEventListener("click", () => $("draw").click());
-$("nextWinner").addEventListener("click", () => run(revealWinner));
-$("popupNext").addEventListener("click", () => run(revealWinner));
+$("nextWinner").addEventListener("click", () => run(() => revealWinner()));
+$("popupNext").addEventListener("click", () => run(() => revealWinner()));
 $("popupClose").addEventListener("click", () => { $("winnerPopup").hidden = true; $("nextWinner").focus(); });
 $("copyLink").addEventListener("click", () => run(async () => {
   try { await navigator.clipboard.writeText($("entryLink").value); message("참가 링크를 복사했습니다."); }
@@ -451,8 +482,8 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 $("csv").addEventListener("click", () => {
-  const rows = [["행사", "당첨 순서", "번호", "이름", "확정 시각"]];
-  for (const w of snapshot.winners) { const p = snapshot.participants.find((p) => p.id === w.participant_id); rows.push([snapshot.event.title, w.prize_rank, p?.slot_number, p?.display_name, w.created_at]); }
+  const rows = [["행사", "공개 순서", "번호", "이름", "상태", "대체 추첨", "확정 시각"]];
+  for (const w of snapshot.winners) { const p = snapshot.participants.find((p) => p.id === w.participant_id); rows.push([snapshot.event.title, winnerOrder(w), p?.slot_number, p?.display_name, w.status === "absent" ? "불참" : "당첨", w.replaces_winner_id ? "추가 추첨" : "", w.created_at]); }
   const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = `nds-lucky-100-${eventId}.csv`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });

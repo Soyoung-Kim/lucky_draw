@@ -34,7 +34,7 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     }
     return jsonResponse({ success: true, events });
   }
-  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register", "add_slots"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
+  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register", "add_slots", "replace"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
   const eventId = action === "create" ? null : uuid(payload.event_id);
   const data: Record<string, unknown> = {};
   if (action === "create") {
@@ -51,6 +51,18 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   if (action === "update" || action === "delete") data.participant_id = uuid(payload.participant_id, "participant_id");
   if (action === "update") data.name = name(payload.name);
   const client = getServiceClient();
+  if (action === "replace") {
+    data.winner_id = uuid(payload.winner_id, "winner_id");
+    const { data: board, error } = await client.rpc("nds_lucky_100_admin", { p_action: "board", p_event: eventId, p_actor: admin.admin_id, p_data: {} });
+    if (error) throw new HttpError("Failed to load replacement candidates", 500, { db_code: error.code });
+    if (board.error) return result(board);
+    const prior = board.winners.find((w: { replaces_winner_id: string }) => w.replaces_winner_id === data.winner_id);
+    const past = new Set(board.winners.map((w: { participant_id: string }) => w.participant_id));
+    const candidates = board.participants.filter((p: { id: string }) => !past.has(p.id));
+    if (!prior && !candidates.length) return result({ error: "NO_REMAINING_CANDIDATES" });
+    data.candidate_ids = candidates.map((p: { id: string }) => p.id);
+    data.participant_id = prior?.participant_id ?? secureShuffle<{ id: string }>(candidates)[0].id;
+  }
   if (action === "register") {
     const participantName = name(payload.name);
     const slot = payload.slot_number;
