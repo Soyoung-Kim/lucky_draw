@@ -215,7 +215,7 @@ function renderWinners() {
     if (winner.prize_rank > revealedCount) continue;
     const p = snapshot.participants.find((row) => row.id === winner.participant_id);
     const item = document.createElement("li"); const number = document.createElement("strong"); number.textContent = `${p?.slot_number ?? winner.slot_number}번`;
-    const text = document.createElement("span"); text.textContent = `${winner.prize_rank}번째 당첨 · ${p?.display_name ?? winner.display_name}`; item.append(number, text); $("winners").append(item);
+    const text = document.createElement("span"); text.textContent = p?.display_name ?? winner.display_name; item.append(number, text); $("winners").append(item);
   }
   $("announcement").textContent = revealedCount ? "✦ 당첨을 축하합니다!" : snapshot.winners.length ? "결과가 확정되었습니다. 한 명씩 공개해 주세요." : "";
 }
@@ -375,7 +375,7 @@ async function revealWinner() {
   animating = true;
   $("winnerPopup").hidden = false;
   $("winnerPopup").classList.remove("celebrate");
-  $("popupTitle").textContent = `${revealedCount + 1}번째 행운의 주인공은?`;
+  $("popupTitle").textContent = "행운의 주인공은?";
   $("popupName").textContent = "두근두근…";
   $("popupProgress").textContent = `${revealedCount + 1} / ${snapshot.winners.length}명`;
   const disclosed = new Set(snapshot.winners.filter((w) => w.prize_rank <= revealedCount).map((w) => w.participant_id));
