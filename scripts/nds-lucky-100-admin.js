@@ -113,7 +113,9 @@ function renderWinners() {
 }
 async function refresh(id = eventId) {
   const data = validate(await api("board", { event_id: id }));
-  eventId = data.event.id; snapshot = data; render();
+  const changed = JSON.stringify(snapshot) !== JSON.stringify(data);
+  eventId = data.event.id; snapshot = data;
+  if (changed) render();
 }
 function edit(participant) {
   if (busy || snapshot.event.status !== "registration") return;
@@ -138,7 +140,14 @@ $("winnerCount").addEventListener("change", controls);
 $("close").addEventListener("click", () => {
   const reopen = snapshot?.event.status === "closed";
   if (!confirm(reopen ? "접수를 재개하면 신규 참가와 정보 수정이 다시 허용됩니다. 접수를 재개하시겠습니까?" : "지금 마감하면 이후 신규 참여가 불가능합니다. 마감하시겠습니까?")) return;
-  run(async () => { await api(reopen ? "reopen" : "close"); await refresh(); });
+  run(async () => {
+    const response = await api(reopen ? "reopen" : "close");
+    if (response.event && snapshot) {
+      snapshot = { ...snapshot, event: response.event };
+      render();
+    }
+    await refresh();
+  });
 });
 $("editForm").addEventListener("submit", (event) => {
   event.preventDefault(); const p = editing;
@@ -195,7 +204,12 @@ $("exitPresentation").addEventListener("click", exitPresentation);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") exitPresentation(); });
 async function sync() {
   if (token && expiresAt <= Date.now()) { logout(); message("로그인이 만료되었습니다. 다시 로그인해 주세요."); return; }
-  if (token && eventId && snapshot && !busy && !document.hidden && !$("editDialog").open) await run(() => refresh());
+  // Poll only while attendees can register. Quiet refreshes do not flash loading controls.
+  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || document.hidden || $("editDialog").open) return;
+  busy = true;
+  try { await refresh(); }
+  catch (error) { message(error.message); }
+  finally { busy = false; controls(); }
 }
 setInterval(sync, 5000); window.addEventListener("online", sync); document.addEventListener("visibilitychange", sync);
 $("eventInput").value = eventId; controls();
