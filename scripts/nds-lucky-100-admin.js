@@ -284,7 +284,7 @@ async function revealWinner() {
   const start = performance.now();
   try {
     await new Promise((resolve) => {
-      let finished = false, frameId = null;
+      let finished = false, frameId = null, lastChange = -Infinity, lastIndex = -1;
       function finish() {
         if (finished) return;
         finished = true;
@@ -300,13 +300,18 @@ async function revealWinner() {
         try {
         // RAF timestamps can precede performance.now() within the same browser frame.
         const elapsed = Math.max(0, now - start);
-        $("board").querySelectorAll(".highlight").forEach((node) => node.classList.remove("highlight"));
         if (elapsed >= duration || !candidates.length) { finish(); return; }
         // Numbers are visual effects only; the actual winner is already saved on the server.
-        const index = Math.floor(35 * Math.log1p(elapsed / 400)) % candidates.length;
-        const candidate = candidates[index];
-        $("popupNumber").textContent = candidate.slot_number;
-        $("board").querySelector(`[data-slot="${candidate.slot_number}"]`)?.classList.add("highlight");
+        const interval = 45 + 135 * Math.pow(elapsed / duration, 3);
+        if (elapsed - lastChange >= interval) {
+          let index = Math.floor(Math.random() * (candidates.length - (lastIndex >= 0 && candidates.length > 1 ? 1 : 0)));
+          if (candidates.length > 1 && lastIndex >= 0 && index >= lastIndex) index++;
+          lastIndex = index; lastChange = elapsed;
+          const candidate = candidates[index];
+          $("board").querySelectorAll(".highlight").forEach((node) => node.classList.remove("highlight"));
+          $("popupNumber").textContent = candidate.slot_number;
+          $("board").querySelector(`[data-slot="${candidate.slot_number}"]`)?.classList.add("highlight");
+        }
         frameId = requestAnimationFrame(frame);
         } catch (error) {
           console.error("Winner animation interrupted", error);
