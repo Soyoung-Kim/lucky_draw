@@ -9,6 +9,7 @@ const state = { name: "", selected: null, occupied: new Set(), status: null, bus
 const slots = [];
 let maxSlots = 100;
 let selectionNotice = "";
+let syncing = false;
 
 function message(value = "") { $("message").textContent = value; $("boardMessage").textContent = value; }
 function busy(value) {
@@ -64,11 +65,15 @@ function renderBoard() {
   $("selectionText").textContent = state.selected ? `${state.selected}번을 선택했습니다.` : selectionNotice || "번호를 선택해 주세요.";
   $("registerButton").disabled = state.busy || !state.fresh || !state.selected || state.status !== "registration" || state.registered;
 }
-async function refreshBoard() {
+async function refreshBoard(backgroundName = null) {
   const data = await request("board");
+  if (backgroundName !== null && (state.busy || state.name !== backgroundName || state.registered)) return;
   const status = validateStatus(data.event_status);
   const capacity = data.max_slots ?? 100;
   if (!Number.isInteger(capacity) || capacity < 2 || capacity > 150 || !Array.isArray(data.occupied_slots) || data.occupied_slots.some((n) => !Number.isInteger(n) || n < 1 || n > capacity)) throw new Error("번호판을 불러오지 못했습니다. 다시 시도해 주세요.");
+  const unchanged = state.fresh && capacity === maxSlots && status === state.status
+    && data.occupied_slots.length === state.occupied.size && data.occupied_slots.every((n) => state.occupied.has(n));
+  if (unchanged) return;
   maxSlots = capacity;
   buildBoard();
   state.status = status;
@@ -138,9 +143,15 @@ $("registerButton").addEventListener("click", async () => {
   } finally { busy(false); }
 });
 async function sync() {
-  if (document.hidden || state.busy || !state.name || state.registered) return;
-  busy(true);
-  try { await refreshBoard(); } catch (error) { state.fresh = false; message(error.message); } finally { busy(false); }
+  if (document.hidden || state.busy || syncing || !state.name || state.registered) return;
+  syncing = true;
+  const previousName = state.name;
+  try { await refreshBoard(previousName); }
+  catch (error) {
+    if (!state.busy && state.name === previousName && !state.registered) {
+      state.fresh = false; message(error.message); renderBoard();
+    }
+  } finally { syncing = false; }
 }
 setInterval(sync, 5000);
 window.addEventListener("online", sync);
