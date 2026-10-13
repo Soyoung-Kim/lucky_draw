@@ -6,6 +6,7 @@ const sessionKey = "nds_lucky_100_admin_session";
 let expiresAt = 0;
 let syncTask = null;
 let revealedCount = 0;
+let inlineEditing = null;
 function rememberReveal() {
   try { sessionStorage.setItem(`nds_reveal_${eventId}`, String(revealedCount)); } catch { /* Presentation still works without storage. */ }
 }
@@ -66,7 +67,7 @@ function controls() {
       ? "추첨이 시작된 행사는 참가자를 추가할 수 없습니다. 테스트하려면 새 행사를 생성해 주세요."
       : full ? "100개 번호가 모두 등록되었습니다. 참가자를 삭제하거나 새 행사를 생성해 주세요."
         : "1~100명 · 빈 번호에 중복 없는 세 글자 이름을 무작위로 등록합니다. 실제 추첨 대상에 포함됩니다.";
-  document.querySelectorAll(".admin-slot").forEach((button) => { button.disabled = busy || status !== "registration" || !button.dataset.participant; });
+  document.querySelectorAll(".slot-main,.slot-delete").forEach((button) => { button.disabled = busy || status !== "registration"; });
 }
 function logout() {
   clearSession();
@@ -94,6 +95,7 @@ async function api(action, payload = {}) {
   if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
   if (data.error === "INVALID_ACTION") throw new Error("서버 API 또는 DB 함수에 이 기능이 반영되지 않았습니다. 최신 접수 재개 SQL 적용과 관리자 API 배포를 확인해 주세요.");
   if (data.error === "DB_UPDATE_REQUIRED") throw new Error("DB의 접수 재개 함수가 구버전입니다. 최신 접수 재개 SQL을 적용해 주세요.");
+  if (data.error === "SLOT_TAKEN") throw new Error("다른 참가자가 먼저 등록한 번호입니다. 새로고침 후 빈 번호를 선택해 주세요.");
   if (data.details?.db_code === "23514") throw new Error("DB 제약조건이 당첨 인원 1~10명을 허용하지 않고 있습니다. 최신 repair-nds-admin.sql을 적용해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
@@ -128,13 +130,51 @@ function render() {
   $("board").replaceChildren();
   for (let n = 1; n <= 100; n++) {
     const p = participants.find((row) => row.slot_number === n);
-    const button = document.createElement("button"); button.type = "button"; button.className = `admin-slot${p ? " filled" : ""}`; button.dataset.slot = n;
+    const tile = document.createElement("div"); tile.className = `admin-slot${p ? " filled" : ""}`; tile.dataset.slot = n;
+    const button = document.createElement("button"); button.type = "button"; button.className = "slot-main";
     const number = document.createElement("strong"); number.textContent = n; const name = document.createElement("span"); name.textContent = p?.display_name ?? "—"; button.append(number, name);
-    if (p) { button.dataset.participant = p.id; button.addEventListener("click", () => edit(p)); }
-    if (winners.some((w) => w.prize_rank <= revealedCount && w.participant_id === p?.id)) button.classList.add("winner");
-    $("board").append(button);
+    tile.append(button);
+    if (p) {
+      tile.dataset.participant = p.id; button.addEventListener("click", () => edit(p));
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "slot-delete"; remove.textContent = "×";
+      remove.setAttribute("aria-label", `${n}번 ${p.display_name} 삭제`);
+      remove.addEventListener("click", () => {
+        if (busy || snapshot.event.status !== "registration") return;
+        if (!confirm(`${n}번 ${p.display_name} 님을 삭제하시겠습니까?`)) return;
+        run(async () => { await api("delete", { participant_id: p.id }); await refresh(); });
+      });
+      if (event.status === "registration") tile.append(remove);
+    } else {
+      button.setAttribute("aria-label", `${n}번 빈 번호. 더블클릭하거나 Enter를 눌러 등록`);
+      button.addEventListener("dblclick", () => beginInline(tile, n));
+      button.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); beginInline(tile, n); } });
+    }
+    if (winners.some((w) => w.prize_rank <= revealedCount && w.participant_id === p?.id)) tile.classList.add("winner");
+    $("board").append(tile);
   }
   renderWinners(); controls();
+}
+function beginInline(tile, slot) {
+  if (busy || inlineEditing || snapshot?.event.status !== "registration") return;
+  const input = document.createElement("input"); input.className = "slot-input"; input.maxLength = 30; input.placeholder = "이름 입력";
+  input.setAttribute("aria-label", `${slot}번 참가자 이름`);
+  inlineEditing = input; tile.classList.add("editing"); tile.append(input); input.focus();
+  let finished = false;
+  function finish(cancel = false) {
+    if (finished) return; finished = true;
+    const name = input.value.trim().replace(/\s+/g, " "); inlineEditing = null;
+    if (cancel || !name || !confirm(`${slot}번에 ${name} 님을 등록하시겠습니까?`)) { render(); return; }
+    run(async () => {
+      try { await api("register", { name, slot_number: slot }); await refresh(); message(`${slot}번에 ${name} 님을 등록했습니다.`); }
+      catch (error) { render(); throw error; }
+    });
+  }
+  input.addEventListener("blur", () => finish());
+  input.addEventListener("keydown", (event) => {
+    if (event.isComposing) return;
+    if (event.key === "Enter") { event.preventDefault(); finish(); }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); finish(true); }
+  });
 }
 function renderWinners() {
   $("winners").replaceChildren();
@@ -155,7 +195,7 @@ async function refresh(id = eventId) {
   }
   const changed = JSON.stringify(snapshot) !== JSON.stringify(data);
   eventId = data.event.id; snapshot = data;
-  if (changed) render();
+  if (changed && !inlineEditing) render();
 }
 function edit(participant) {
   if (busy || snapshot.event.status !== "registration") return;
@@ -299,7 +339,7 @@ document.addEventListener("keydown", (event) => { if (event.key === "Escape") ex
 async function sync() {
   if (token && expiresAt <= Date.now()) { logout(); message("로그인이 만료되었습니다. 다시 로그인해 주세요."); return; }
   // Poll only while attendees can register. Quiet refreshes do not flash loading controls.
-  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || syncTask || document.hidden || $("editDialog").open) return;
+  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || syncTask || inlineEditing || document.hidden || $("editDialog").open) return;
   syncTask = refresh().catch((error) => message(error.message));
   try { await syncTask; }
   finally { syncTask = null; controls(); }

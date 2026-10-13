@@ -21,7 +21,7 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   // Only signed sessions accepted for new endpoints; do not accept the legacy static token.
   const admin = await verifyAdminAccess({ admin_session_token: payload.admin_session_token });
   if (admin.admin_id !== Deno.env.get("ADMIN_ID")) throw new HttpError("Invalid admin session", 401);
-  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
+  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
   const eventId = action === "create" ? null : uuid(payload.event_id);
   const data: Record<string, unknown> = {};
   if (action === "create") {
@@ -31,6 +31,16 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   if (action === "update" || action === "delete") data.participant_id = uuid(payload.participant_id, "participant_id");
   if (action === "update") data.name = name(payload.name);
   const client = getServiceClient();
+  if (action === "register") {
+    const participantName = name(payload.name);
+    const slot = payload.slot_number;
+    if (typeof slot !== "number" || !Number.isInteger(slot) || slot < 1 || slot > 100) throw new HttpError("INVALID_SLOT", 400);
+    const { data: registration, error } = await client.rpc("nds_lucky_100_public", {
+      p_action: "register", p_event: eventId, p_name: participantName, p_slot: slot,
+    });
+    if (error) throw new HttpError("Failed to register participant", 500, { db_code: error.code });
+    return result(registration);
+  }
   if (action === "seed") {
     const count = payload.count;
     if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > 100) throw new HttpError("INVALID_TEST_COUNT", 400);
