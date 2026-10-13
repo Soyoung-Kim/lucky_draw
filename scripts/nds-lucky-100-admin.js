@@ -43,6 +43,16 @@ function controls() {
   $("seedButton").disabled = busy || status !== "registration";
   $("testCount").disabled = busy || status !== "registration";
   $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
+  const full = (snapshot?.participants.length ?? 0) >= 100;
+  $("seedButton").disabled ||= full;
+  $("testReopen").hidden = status !== "closed";
+  $("testReopen").disabled = busy;
+  $("testHelp").textContent = status === "closed"
+    ? "접수가 마감되어 추가할 수 없습니다. 아래 ‘접수 재개’를 누른 뒤 테스트 참가자를 넣어 주세요."
+    : ["drawing", "completed"].includes(status)
+      ? "추첨이 시작된 행사는 참가자를 추가할 수 없습니다. 테스트하려면 새 행사를 생성해 주세요."
+      : full ? "100개 번호가 모두 등록되었습니다. 참가자를 삭제하거나 새 행사를 생성해 주세요."
+        : "1~100명 · 빈 번호에 중복 없는 세 글자 이름을 무작위로 등록합니다. 실제 추첨 대상에 포함됩니다.";
   document.querySelectorAll(".admin-slot").forEach((button) => { button.disabled = busy || status !== "registration" || !button.dataset.participant; });
 }
 function logout() {
@@ -142,6 +152,7 @@ $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); co
 $("refresh").addEventListener("click", () => run(() => refresh()));
 $("winnerCount").addEventListener("change", controls);
 let seeding = false;
+$("testReopen").addEventListener("click", () => $("close").click());
 $("seedForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const count = Number($("testCount").value);
