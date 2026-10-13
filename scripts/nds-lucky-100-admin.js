@@ -240,7 +240,16 @@ $("logout").addEventListener("click", logout);
 $("createForm").addEventListener("submit", (event) => {
   event.preventDefault(); const title = $("titleInput").value.trim(); if (!title) return;
   if (!confirm(`“${title}” 행사를 새로 생성하시겠습니까?`)) return;
-  run(async () => { const data = await api("create", { title, max_slots: Number($("initialSlots").value) }); eventId = data.event.id; $("eventInput").value = eventId; const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url); await refresh(); });
+  run(async () => {
+    const requestedSlots = Number($("initialSlots").value);
+    const data = await api("create", { title, max_slots: requestedSlots });
+    eventId = data.event.id;
+    const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url);
+    await refresh();
+    if (snapshot.event.max_slots !== requestedSlots) {
+      message(`요청한 ${requestedSlots}칸과 실제 생성된 ${snapshot.event.max_slots}칸이 다릅니다. 최신 칸 수 변경 SQL 적용과 관리자 API 재배포가 필요합니다. 이 행사는 이미 생성되었으므로 다시 생성하지 말고 적용 후 칸 추가를 사용해 주세요.`);
+    }
+  });
 });
 $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); const id = $("eventInput").value.trim(); run(() => refresh(id)); });
 $("eventInput").addEventListener("change", () => { const id = $("eventInput").value; if (id) run(() => refresh(id)); });
