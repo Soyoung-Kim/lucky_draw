@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f8f7fc" />
     <title>NDS LUCKY 100 · 참가하기</title>
     <link rel="stylesheet" href="../styles/nds-lucky-100.css?v=20261013-slot-contrast" />
-    <script type="module" src="../scripts/nds-lucky-100.js?v=20261013-variable-slots"></script>
+    <script type="module" src="../scripts/nds-lucky-100.js?v=20261013-slot-collision"></script>
   </head>
   <body>
     <main class="shell">
@@ -28,6 +28,7 @@
         <div class="section-top"><h2 id="boardHeading">어떤 번호가 끌리나요?</h2><span id="count" class="badge"></span></div>
         <p class="help"><strong id="participantName"></strong> 님, 빈 번호를 하나 선택해 주세요.</p>
         <div class="legend"><span><i></i>선택 가능</span><span><i class="occupied"></i>참가 완료</span><span><i class="selected"></i>내 선택</span></div>
+        <p id="boardMessage" class="message" role="alert" aria-live="assertive"></p>
         <div id="board" class="board" role="group" aria-label="1부터 100까지 번호 선택"></div>
         <p id="selectionText" class="selection" aria-live="polite">번호를 선택해 주세요.</p>
         <button id="registerButton" class="primary" type="button" disabled>이 번호로 참가하기</button>

@@ -8,8 +8,9 @@ const eventId = new URLSearchParams(location.search).get("event");
 const state = { name: "", selected: null, occupied: new Set(), status: null, busy: false, registered: false, fresh: false };
 const slots = [];
 let maxSlots = 100;
+let selectionNotice = "";
 
-function message(value = "") { $("message").textContent = value; }
+function message(value = "") { $("message").textContent = value; $("boardMessage").textContent = value; }
 function busy(value) {
   state.busy = value;
   $("lookupButton").disabled = value;
@@ -43,6 +44,7 @@ function validateStatus(status) {
 function showResult(slot, status) {
   if (!Number.isInteger(slot) || slot < 1 || slot > 150) throw new Error("등록 번호를 확인하지 못했습니다. 다시 조회해 주세요.");
   state.registered = true;
+  selectionNotice = ""; message();
   $("boardSection").hidden = true;
   $("closedSection").hidden = true;
   $("resultSection").hidden = false;
@@ -59,7 +61,7 @@ function renderBoard() {
     button.setAttribute("aria-label", `${n}번${taken ? ", 참가 완료" : ", 선택 가능"}`);
   }
   $("count").textContent = `${state.occupied.size} / ${maxSlots}`;
-  $("selectionText").textContent = state.selected ? `${state.selected}번을 선택했습니다.` : "번호를 선택해 주세요.";
+  $("selectionText").textContent = state.selected ? `${state.selected}번을 선택했습니다.` : selectionNotice || "번호를 선택해 주세요.";
   $("registerButton").disabled = state.busy || !state.fresh || !state.selected || state.status !== "registration" || state.registered;
 }
 async function refreshBoard() {
@@ -72,7 +74,11 @@ async function refreshBoard() {
   state.status = status;
   state.occupied = new Set(data.occupied_slots);
   state.fresh = true;
-  if (state.occupied.has(state.selected)) state.selected = null;
+  if (state.occupied.has(state.selected)) {
+    selectionNotice = `${state.selected}번은 다른 참가자가 먼저 등록했습니다. 다른 빈 번호를 선택해 주세요.`;
+    state.selected = null;
+    message(selectionNotice);
+  }
   $("boardSection").hidden = status !== "registration" || state.registered;
   $("closedSection").hidden = status === "registration" || state.registered;
   renderBoard();
@@ -94,13 +100,14 @@ function buildBoard() {
 for (let n = 1; n <= maxSlots; n++) {
   const button = document.createElement("button");
   button.type = "button"; button.className = "slot"; button.dataset.slot = n; button.textContent = n;
-  button.addEventListener("click", () => { state.selected = n; renderBoard(); });
+  button.addEventListener("click", () => { state.selected = n; selectionNotice = ""; message(); renderBoard(); });
   slots.push(button); $("board").append(button);
 }
 }
 buildBoard();
 $("nameInput").addEventListener("input", () => {
   state.name = ""; state.selected = null; state.registered = false; state.fresh = false;
+  selectionNotice = "";
   for (const id of ["boardSection", "resultSection", "closedSection"]) $(id).hidden = true;
   message(); renderBoard();
 });
@@ -110,18 +117,21 @@ $("nameForm").addEventListener("submit", async (event) => {
   const name = $("nameInput").value.trim().replace(/\s+/g, " ");
   if (!name || [...name].length > 30) { message("이름은 1~30자로 입력해 주세요."); return; }
   state.name = name; state.selected = null; state.registered = false; state.fresh = false;
+  selectionNotice = "";
   for (const id of ["boardSection", "resultSection", "closedSection"]) $(id).hidden = true;
   message(); busy(true);
   try { await lookup(); } catch (error) { message(error.message); } finally { busy(false); }
 });
 $("registerButton").addEventListener("click", async () => {
   if (state.busy || !state.fresh || !state.selected || state.status !== "registration" || state.registered) return;
+  const submittedSlot = state.selected;
   busy(true); message();
   try {
     const data = await request("register", { name: state.name, slot_number: state.selected });
     showResult(data.own_slot, validateStatus(data.event_status));
   } catch (error) {
-    message(error.message);
+    selectionNotice = error.code === "SLOT_TAKEN" ? `${submittedSlot}번은 다른 참가자가 먼저 등록했습니다. 다른 빈 번호를 선택해 주세요.` : error.message;
+    message(selectionNotice);
     state.fresh = false; state.selected = null;
     // A lost response can still mean the server committed registration.
     try { await lookup(); } catch { message(`${error.message} 이름을 다시 확인해 주세요.`); }
@@ -130,7 +140,7 @@ $("registerButton").addEventListener("click", async () => {
 async function sync() {
   if (document.hidden || state.busy || !state.name || state.registered) return;
   busy(true);
-  try { await refreshBoard(); message(); } catch (error) { state.fresh = false; message(error.message); } finally { busy(false); }
+  try { await refreshBoard(); } catch (error) { state.fresh = false; message(error.message); } finally { busy(false); }
 }
 setInterval(sync, 5000);
 window.addEventListener("online", sync);
