@@ -2,6 +2,33 @@ import { CONFIG, isConfigured } from "./config.js";
 const $ = (id) => document.getElementById(id);
 const labels = { registration: "접수 중", closed: "접수 마감", drawing: "추첨 진행", completed: "종료" };
 let token = "", eventId = new URLSearchParams(location.search).get("event") ?? "", snapshot = null, busy = false, editing = null, animating = false;
+const sessionKey = "nds_lucky_100_admin_session";
+let expiresAt = 0;
+function clearSession() {
+  expiresAt = 0;
+  try { sessionStorage.removeItem(sessionKey); } catch { /* Storage can be blocked by browser settings. */ }
+}
+function saveSession(data) {
+  token = data.admin_session_token;
+  expiresAt = Date.parse(data.expires_at);
+  if (typeof token !== "string" || !token || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    logout(); throw new Error("로그인 세션을 확인하지 못했습니다. 다시 로그인해 주세요.");
+  }
+  try { sessionStorage.setItem(sessionKey, JSON.stringify({ token, expiresAt })); }
+  catch { message("브라우저가 세션 저장을 차단하여 새로고침 시 재로그인이 필요합니다."); }
+}
+function restoreSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(sessionKey));
+    if (typeof saved?.token === "string" && saved.token && Number.isFinite(saved.expiresAt) && saved.expiresAt > Date.now()) {
+      token = saved.token; expiresAt = saved.expiresAt;
+      $("loginPanel").hidden = true; $("dashboard").hidden = false; $("logout").hidden = false;
+      if (eventId) run(() => refresh());
+      return;
+    }
+  } catch { /* Invalid saved sessions require a fresh login. */ }
+  clearSession();
+}
 function message(text = "") { $("message").textContent = text; }
 function controls() {
   document.querySelectorAll("button,select").forEach((element) => { element.disabled = busy; });
@@ -16,6 +43,7 @@ function controls() {
   document.querySelectorAll(".admin-slot").forEach((button) => { button.disabled = busy || status !== "registration" || !button.dataset.participant; });
 }
 function logout() {
+  clearSession();
   token = ""; snapshot = null; editing = null;
   if ($("editDialog").open) $("editDialog").close();
   document.body.classList.remove("presenting");
@@ -24,6 +52,9 @@ function logout() {
   $("board").replaceChildren(); $("winners").replaceChildren(); $("announcement").textContent = "";
 }
 async function api(action, payload = {}) {
+  if (action !== "login" && (!token || expiresAt <= Date.now())) {
+    logout(); throw new Error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+  }
   if (!isConfigured()) throw new Error("Supabase 연결 설정을 확인해 주세요.");
   let response;
   try { response = await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/nds-lucky-100-admin`, {
@@ -91,7 +122,7 @@ function edit(participant) {
 $("loginForm").addEventListener("submit", (event) => {
   event.preventDefault(); run(async () => {
     const data = await api("login", { admin_id: $("adminId").value.trim(), password: $("password").value });
-    token = data.admin_session_token; $("password").value = ""; $("loginPanel").hidden = true; $("dashboard").hidden = false; $("logout").hidden = false;
+    saveSession(data); $("password").value = ""; $("loginPanel").hidden = true; $("dashboard").hidden = false; $("logout").hidden = false;
     if (eventId) await refresh();
   });
 });
@@ -162,6 +193,10 @@ $("presentation").addEventListener("click", () => { document.body.classList.add(
 function exitPresentation() { document.body.classList.remove("presenting"); $("exitPresentation").hidden = true; }
 $("exitPresentation").addEventListener("click", exitPresentation);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") exitPresentation(); });
-async function sync() { if (token && eventId && snapshot && !busy && !document.hidden && !$("editDialog").open) await run(() => refresh()); }
+async function sync() {
+  if (token && expiresAt <= Date.now()) { logout(); message("로그인이 만료되었습니다. 다시 로그인해 주세요."); return; }
+  if (token && eventId && snapshot && !busy && !document.hidden && !$("editDialog").open) await run(() => refresh());
+}
 setInterval(sync, 5000); window.addEventListener("online", sync); document.addEventListener("visibilitychange", sync);
 $("eventInput").value = eventId; controls();
+restoreSession();
