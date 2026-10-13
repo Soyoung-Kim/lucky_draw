@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const eventId = new URLSearchParams(location.search).get("event");
 const state = { name: "", selected: null, occupied: new Set(), status: null, busy: false, registered: false, fresh: false };
 const slots = [];
+let maxSlots = 100;
 
 function message(value = "") { $("message").textContent = value; }
 function busy(value) {
@@ -40,7 +41,7 @@ function validateStatus(status) {
   return status;
 }
 function showResult(slot, status) {
-  if (!Number.isInteger(slot) || slot < 1 || slot > 100) throw new Error("등록 번호를 확인하지 못했습니다. 다시 조회해 주세요.");
+  if (!Number.isInteger(slot) || slot < 1 || slot > 150) throw new Error("등록 번호를 확인하지 못했습니다. 다시 조회해 주세요.");
   state.registered = true;
   $("boardSection").hidden = true;
   $("closedSection").hidden = true;
@@ -57,14 +58,17 @@ function renderBoard() {
     button.setAttribute("aria-pressed", String(state.selected === n));
     button.setAttribute("aria-label", `${n}번${taken ? ", 참가 완료" : ", 선택 가능"}`);
   }
-  $("count").textContent = `${state.occupied.size} / 100`;
+  $("count").textContent = `${state.occupied.size} / ${maxSlots}`;
   $("selectionText").textContent = state.selected ? `${state.selected}번을 선택했습니다.` : "번호를 선택해 주세요.";
   $("registerButton").disabled = state.busy || !state.fresh || !state.selected || state.status !== "registration" || state.registered;
 }
 async function refreshBoard() {
   const data = await request("board");
   const status = validateStatus(data.event_status);
-  if (!Array.isArray(data.occupied_slots) || data.occupied_slots.some((n) => !Number.isInteger(n) || n < 1 || n > 100)) throw new Error("번호판을 불러오지 못했습니다. 다시 시도해 주세요.");
+  const capacity = data.max_slots ?? 100;
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 150 || !Array.isArray(data.occupied_slots) || data.occupied_slots.some((n) => !Number.isInteger(n) || n < 1 || n > capacity)) throw new Error("번호판을 불러오지 못했습니다. 다시 시도해 주세요.");
+  maxSlots = capacity;
+  buildBoard();
   state.status = status;
   state.occupied = new Set(data.occupied_slots);
   state.fresh = true;
@@ -82,12 +86,19 @@ async function lookup() {
   else if (state.status !== "registration") $("closedSection").hidden = false;
   else { $("participantName").textContent = state.name; await refreshBoard(); }
 }
-for (let n = 1; n <= 100; n++) {
+function buildBoard() {
+  if (slots.length === maxSlots) return;
+  slots.length = 0; $("board").replaceChildren();
+  $("board").setAttribute("aria-label", `1부터 ${maxSlots}까지 번호 선택`);
+  $("board").style.gridTemplateColumns = `repeat(${Math.min(10, maxSlots)}, minmax(0, 1fr))`;
+for (let n = 1; n <= maxSlots; n++) {
   const button = document.createElement("button");
   button.type = "button"; button.className = "slot"; button.dataset.slot = n; button.textContent = n;
   button.addEventListener("click", () => { state.selected = n; renderBoard(); });
   slots.push(button); $("board").append(button);
 }
+}
+buildBoard();
 $("nameInput").addEventListener("input", () => {
   state.name = ""; state.selected = null; state.registered = false; state.fresh = false;
   for (const id of ["boardSection", "resultSection", "closedSection"]) $(id).hidden = true;

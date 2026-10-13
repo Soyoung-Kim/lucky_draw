@@ -21,12 +21,19 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   // Only signed sessions accepted for new endpoints; do not accept the legacy static token.
   const admin = await verifyAdminAccess({ admin_session_token: payload.admin_session_token });
   if (admin.admin_id !== Deno.env.get("ADMIN_ID")) throw new HttpError("Invalid admin session", 401);
-  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
+  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register", "add_slots"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
   const eventId = action === "create" ? null : uuid(payload.event_id);
   const data: Record<string, unknown> = {};
   if (action === "create") {
     if (typeof payload.title !== "string" || !payload.title.trim() || [...payload.title.trim()].length > 120) throw new HttpError("INVALID_TITLE", 400);
     data.title = payload.title.trim();
+    const slots = payload.max_slots ?? 100;
+    if (typeof slots !== "number" || !Number.isInteger(slots) || slots < 2 || slots > 150) throw new HttpError("INVALID_MAX_SLOTS", 400);
+    data.max_slots = slots;
+  }
+  if (action === "add_slots") {
+    if (typeof payload.amount !== "number" || !Number.isInteger(payload.amount) || payload.amount < 1 || payload.amount > 148) throw new HttpError("INVALID_SLOT_AMOUNT", 400);
+    data.amount = payload.amount;
   }
   if (action === "update" || action === "delete") data.participant_id = uuid(payload.participant_id, "participant_id");
   if (action === "update") data.name = name(payload.name);
@@ -34,7 +41,7 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   if (action === "register") {
     const participantName = name(payload.name);
     const slot = payload.slot_number;
-    if (typeof slot !== "number" || !Number.isInteger(slot) || slot < 1 || slot > 100) throw new HttpError("INVALID_SLOT", 400);
+    if (typeof slot !== "number" || !Number.isInteger(slot) || slot < 1 || slot > 150) throw new HttpError("INVALID_SLOT", 400);
     const { data: registration, error } = await client.rpc("nds_lucky_100_public", {
       p_action: "register", p_event: eventId, p_name: participantName, p_slot: slot,
     });
@@ -49,7 +56,7 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     if (board.error) return result(board);
     if (board.event.status !== "registration") return result({ error: "CLOSED" });
     const occupied = new Set(board.participants.map((p: { slot_number: number }) => p.slot_number));
-    const free = secureShuffle(Array.from({ length: 100 }, (_, i) => i + 1).filter((slot) => !occupied.has(slot)));
+    const free = secureShuffle(Array.from({ length: board.event.max_slots }, (_, i) => i + 1).filter((slot) => !occupied.has(slot)));
     if (count > free.length) return result({ error: "NOT_ENOUGH_SLOTS", available_slots: free.length });
     const names = testNames(board.participants.map((p: { display_name: string }) => p.display_name));
     let inserted = 0, nameIndex = 0, stoppedReason: string | null = null;

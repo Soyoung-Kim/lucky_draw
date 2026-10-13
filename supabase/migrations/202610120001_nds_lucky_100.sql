@@ -3,7 +3,7 @@ create table public.nds_lucky_100_events (
   id uuid primary key default gen_random_uuid(),
   title text not null check (char_length(btrim(title)) between 1 and 120),
   status text not null default 'registration' check (status in ('registration','closed','drawing','completed')),
-  max_slots integer not null default 100 check (max_slots = 100),
+  max_slots integer not null default 100 check (max_slots between 2 and 150),
   winner_limit integer check (winner_limit between 1 and 10),
   closed_at timestamptz,
   closed_participant_count integer,
@@ -12,7 +12,7 @@ create table public.nds_lucky_100_events (
 create table public.nds_lucky_100_participants (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.nds_lucky_100_events(id),
-  slot_number integer not null check (slot_number between 1 and 100),
+  slot_number integer not null check (slot_number between 1 and 150),
   display_name text not null check (char_length(display_name) between 1 and 30),
   normalized_name text not null check (char_length(normalized_name) between 1 and 30),
   created_at timestamptz not null default now(),
@@ -79,7 +79,7 @@ begin
   end if;
   if not found then return jsonb_build_object('error','EVENT_NOT_FOUND'); end if;
   if p_action = 'board' then
-    return jsonb_build_object('event_status',e.status,'occupied_slots',
+    return jsonb_build_object('event_status',e.status,'max_slots',e.max_slots,'occupied_slots',
       (select coalesce(jsonb_agg(slot_number order by slot_number),'[]'::jsonb) from public.nds_lucky_100_participants where event_id=p_event));
   end if;
   if p_action not in ('lookup','register') then return jsonb_build_object('error','INVALID_ACTION'); end if;
@@ -91,7 +91,7 @@ begin
   end if;
   if e.status <> 'registration' then return jsonb_build_object('error','CLOSED'); end if;
   if p.id is not null then return jsonb_build_object('error','ALREADY_NAME'); end if;
-  if p_slot is null or p_slot not between 1 and 100 then return jsonb_build_object('error','INVALID_SLOT'); end if;
+  if p_slot is null or p_slot not between 1 and e.max_slots then return jsonb_build_object('error','INVALID_SLOT'); end if;
   if exists(select 1 from public.nds_lucky_100_participants where event_id=p_event and slot_number=p_slot) then
     return jsonb_build_object('error','SLOT_TAKEN');
   end if;
@@ -106,7 +106,7 @@ declare e public.nds_lucky_100_events%rowtype; p public.nds_lucky_100_participan
   v_name text; v_count integer; v_limit integer; v_ids uuid[]; v_results jsonb;
 begin
   if p_action='create' then
-    insert into public.nds_lucky_100_events(title) values(btrim(p_data->>'title')) returning * into e;
+    insert into public.nds_lucky_100_events(title,max_slots) values(btrim(p_data->>'title'),coalesce((p_data->>'max_slots')::integer,100)) returning * into e;
   else
     select * into e from public.nds_lucky_100_events where id=p_event for update;
     if not found then return jsonb_build_object('error','EVENT_NOT_FOUND'); end if;
@@ -115,6 +115,12 @@ begin
         (select coalesce(jsonb_agg(to_jsonb(t) order by t.slot_number),'[]') from public.nds_lucky_100_participants t where event_id=e.id),
         'winners',(select coalesce(jsonb_agg(jsonb_build_object('prize_rank',w.prize_rank,'participant_id',participant_row.id,'slot_number',participant_row.slot_number,'display_name',participant_row.display_name) order by w.prize_rank),'[]')
           from public.nds_lucky_100_winners w join public.nds_lucky_100_participants participant_row on participant_row.id=w.participant_id where w.event_id=e.id));
+    elsif p_action='add_slots' then
+      if e.status not in ('registration','closed') then return jsonb_build_object('error','DRAW_ALREADY_STARTED'); end if;
+      v_count := (p_data->>'amount')::integer;
+      if v_count is null or v_count < 1 or e.max_slots + v_count > 150 then return jsonb_build_object('error','INVALID_SLOT_AMOUNT'); end if;
+      p_data := p_data || jsonb_build_object('previous_max_slots',e.max_slots);
+      update public.nds_lucky_100_events set max_slots=max_slots+v_count where id=e.id returning * into e;
     elsif p_action='close' then
       if e.status='registration' then
         select count(*) into v_count from public.nds_lucky_100_participants where event_id=e.id;

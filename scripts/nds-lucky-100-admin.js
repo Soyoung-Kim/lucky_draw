@@ -57,7 +57,10 @@ function controls() {
   $("seedButton").disabled = busy || status !== "registration";
   $("testCount").disabled = busy || status !== "registration";
   $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
-  const full = (snapshot?.participants.length ?? 0) >= 100;
+  const full = (snapshot?.participants.length ?? 0) >= (snapshot?.event.max_slots ?? 100);
+  $("addSlotsButton").disabled = busy || !["registration", "closed"].includes(status) || snapshot?.event.max_slots >= 150;
+  $("addSlotsInput").disabled = $("addSlotsButton").disabled;
+  $("addSlotsInput").max = Math.max(1, 150 - (snapshot?.event.max_slots ?? 100));
   $("seedButton").disabled ||= full;
   $("testReopen").hidden = status !== "closed";
   $("testReopen").disabled = busy;
@@ -65,7 +68,7 @@ function controls() {
     ? "접수가 마감되어 추가할 수 없습니다. 아래 ‘접수 재개’를 누른 뒤 테스트 참가자를 넣어 주세요."
     : ["drawing", "completed"].includes(status)
       ? "추첨이 시작된 행사는 참가자를 추가할 수 없습니다. 테스트하려면 새 행사를 생성해 주세요."
-      : full ? "100개 번호가 모두 등록되었습니다. 참가자를 삭제하거나 새 행사를 생성해 주세요."
+      : full ? "모든 번호가 등록되었습니다. 칸을 추가하거나 새 행사를 생성해 주세요."
         : "1~100명 · 빈 번호에 중복 없는 세 글자 이름을 무작위로 등록합니다. 실제 추첨 대상에 포함됩니다.";
   document.querySelectorAll(".slot-main,.slot-delete").forEach((button) => { button.disabled = busy || status !== "registration"; });
 }
@@ -122,13 +125,16 @@ function render() {
   const { event, participants, winners } = snapshot;
   $("eventPanel").hidden = false; $("eventTitle").textContent = event.title; $("status").textContent = labels[event.status];
   $("participantCount").textContent = participants.length;
+  $("maxSlots").textContent = event.max_slots;
+  $("board").style.setProperty("--board-rows", Math.ceil(event.max_slots / 10));
+  $("board").style.gridTemplateColumns = `repeat(${Math.min(10, event.max_slots)}, minmax(0, 1fr))`;
   $("closedInfo").textContent = event.closed_at ? `마감 ${new Date(event.closed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · ${event.closed_participant_count}명 확정` : "";
   const link = new URL("../nds_lucky_100/", location.href); link.searchParams.set("event", event.id); $("entryLink").value = link.href;
   $("eventInput").value = event.id;
   if (event.winner_limit) $("winnerCount").value = String(event.winner_limit);
   const url = new URL(location.href); url.searchParams.set("event", event.id); history.replaceState(null, "", url);
   $("board").replaceChildren();
-  for (let n = 1; n <= 100; n++) {
+  for (let n = 1; n <= event.max_slots; n++) {
     const p = participants.find((row) => row.slot_number === n);
     const tile = document.createElement("div"); tile.className = `admin-slot${p ? " filled" : ""}`; tile.dataset.slot = n;
     const button = document.createElement("button"); button.type = "button"; button.className = "slot-main";
@@ -212,7 +218,7 @@ $("logout").addEventListener("click", logout);
 $("createForm").addEventListener("submit", (event) => {
   event.preventDefault(); const title = $("titleInput").value.trim(); if (!title) return;
   if (!confirm(`“${title}” 행사를 새로 생성하시겠습니까?`)) return;
-  run(async () => { const data = await api("create", { title }); eventId = data.event.id; $("eventInput").value = eventId; const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url); await refresh(); });
+  run(async () => { const data = await api("create", { title, max_slots: Number($("initialSlots").value) }); eventId = data.event.id; $("eventInput").value = eventId; const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url); await refresh(); });
 });
 $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); const id = $("eventInput").value.trim(); run(() => refresh(id)); });
 $("refresh").addEventListener("click", () => run(() => refresh()));
@@ -223,7 +229,7 @@ $("seedForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const count = Number($("testCount").value);
   if (!Number.isInteger(count) || count < 1 || count > 100) { message("테스트 인원은 1~100명으로 입력해 주세요."); return; }
-  const available = 100 - (snapshot?.participants.length ?? 100);
+  const available = (snapshot?.event.max_slots ?? 0) - (snapshot?.participants.length ?? 0);
   if (count > available) { message(`빈 번호가 부족합니다. 현재 ${available}명까지 추가할 수 있습니다.`); return; }
   run(async () => {
     seeding = true; controls();
@@ -255,6 +261,12 @@ $("close").addEventListener("click", () => {
     }
     message(reopen ? "접수를 재개했습니다. ‘접수 마감’과 테스트 참가자 넣기를 사용할 수 있습니다." : "접수를 마감했습니다. 추첨 전에는 다시 재개할 수 있습니다.");
   });
+});
+$("addSlotsForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const amount = Number($("addSlotsInput").value);
+  if (!Number.isInteger(amount) || amount < 1 || !snapshot || snapshot.event.max_slots + amount > 150) { message("최대 150칸까지 추가할 수 있습니다."); return; }
+  run(async () => { await api("add_slots", { amount }); await refresh(); message(`${amount}칸을 추가했습니다. 총 ${snapshot.event.max_slots}칸입니다.`); });
 });
 $("editForm").addEventListener("submit", (event) => {
   event.preventDefault(); const p = editing;

@@ -42,7 +42,7 @@ export function servePublic(action: "lookup" | "board" | "register") {
     const participantName = action === "board" ? null : name(payload.name);
     let slot = null;
     if (action === "register") {
-      if (typeof payload.slot_number !== "number" || !Number.isInteger(payload.slot_number) || payload.slot_number < 1 || payload.slot_number > 100) throw new HttpError("INVALID_SLOT", 400);
+      if (typeof payload.slot_number !== "number" || !Number.isInteger(payload.slot_number) || payload.slot_number < 1 || payload.slot_number > 150) throw new HttpError("INVALID_SLOT", 400);
       slot = payload.slot_number;
     }
     // Shared Wi-Fi can place all 100 attendees behind one IP; polling gets a separate budget.
