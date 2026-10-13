@@ -40,6 +40,9 @@ function controls() {
   $("winnerCount").disabled = busy || status !== "closed";
   $("finish").disabled = busy || status !== "drawing";
   $("csv").disabled = busy || !snapshot?.winners.length;
+  $("seedButton").disabled = busy || status !== "registration";
+  $("testCount").disabled = busy || status !== "registration";
+  $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
   document.querySelectorAll(".admin-slot").forEach((button) => { button.disabled = busy || status !== "registration" || !button.dataset.participant; });
 }
 function logout() {
@@ -59,11 +62,12 @@ async function api(action, payload = {}) {
   let response;
   try { response = await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/nds-lucky-100-admin`, {
     method: "POST", headers: { "Content-Type": "application/json", apikey: CONFIG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}` },
-    body: JSON.stringify({ action, event_id: eventId, admin_session_token: token, ...payload }), signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ action, event_id: eventId, admin_session_token: token, ...payload }), signal: AbortSignal.timeout(action === "seed" ? 120000 : 20000),
   }); } catch { throw new Error("연결에 실패했습니다. 작업이 처리되었을 수 있으니 기존 행사 ID로 새로고침해 확인해 주세요."); }
   const data = await response.json().catch(() => ({}));
   if (data.error === "DRAW_ALREADY_STARTED") throw new Error("추첨이 시작된 이후에는 접수를 재개할 수 없습니다. 새로고침해 주세요.");
   if (data.error === "CANDIDATES_CHANGED") throw new Error("접수 재개로 참가 명단이 변경되었습니다. 새로고침 후 다시 추첨해 주세요.");
+  if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
@@ -137,6 +141,22 @@ $("createForm").addEventListener("submit", (event) => {
 $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); const id = $("eventInput").value.trim(); run(() => refresh(id)); });
 $("refresh").addEventListener("click", () => run(() => refresh()));
 $("winnerCount").addEventListener("change", controls);
+let seeding = false;
+$("seedForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const count = Number($("testCount").value);
+  if (!Number.isInteger(count) || count < 1 || count > 100) { message("테스트 인원은 1~100명으로 입력해 주세요."); return; }
+  const available = 100 - (snapshot?.participants.length ?? 100);
+  if (count > available) { message(`빈 번호가 부족합니다. 현재 ${available}명까지 추가할 수 있습니다.`); return; }
+  run(async () => {
+    seeding = true; controls();
+    let response;
+    try { response = await api("seed", { count }); }
+    finally { seeding = false; }
+    await refresh();
+    message(response.inserted_count === count ? `테스트 참가자 ${count}명을 등록했습니다.` : `${count}명 중 ${response.inserted_count}명을 등록했습니다. 접수 상태와 남은 번호를 확인해 주세요.`);
+  });
+});
 $("close").addEventListener("click", () => {
   const reopen = snapshot?.event.status === "closed";
   if (!confirm(reopen ? "접수를 재개하면 신규 참가와 정보 수정이 다시 허용됩니다. 접수를 재개하시겠습니까?" : "지금 마감하면 이후 신규 참여가 불가능합니다. 마감하시겠습니까?")) return;

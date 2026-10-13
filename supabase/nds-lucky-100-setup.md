@@ -28,6 +28,8 @@ npx supabase functions deploy nds-lucky-100-admin
 
 ## API 계약
 
+관리자 번호판 아래의 테스트 참가자 넣기는 `action: seed`, `count: 1~100`을 사용한다. 관리자 인증 후 중복 없는 세 글자 한국인 이름과 빈 번호를 무작위로 정해 실제 register RPC로 한 명씩 등록한다. 기존 참가자를 덮어쓰지 않으며 접수 중에만 가능하다. 빈칸 부족은 사전에 거부한다. 동시 등록·마감으로 일부만 등록되면 inserted_count와 stopped_reason을 반환한다. 테스트 참가자도 실제 추첨 대상에 포함된다. 새 SQL 적용 없이 nds-lucky-100-admin API 재배포와 Pages 배포만 필요하다.
+
 | 함수/작업 | 추가 입력 | 반환 |
 |---|---|---|
 | lookup | event_id, name | is_registered, own_slot, event_status |
