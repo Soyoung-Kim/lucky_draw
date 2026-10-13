@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Instant Draw Admin</title>
+    <title>Lucky Draw Admin</title>
     <link rel="stylesheet" href="./styles/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="./scripts/admin.js"></script>
@@ -11,8 +11,8 @@
   <body>
     <header class="topbar">
       <a class="brand" href="./index.html" aria-label="이벤트 홈">
-        <span class="brand-mark">ID</span>
-        <span>Instant Draw</span>
+        <span class="brand-mark">NDS</span>
+        <span>Lucky Draw</span>
       </a>
       <div class="topbar-actions">
         <span id="adminStateBadge" class="status-pill">로그아웃</span>
@@ -31,7 +31,7 @@
             <label for="adminIdInput">ID</label>
             <input id="adminIdInput" name="admin_id" value="super" required />
             <label for="adminPasswordInput">Password</label>
-            <input id="adminPasswordInput" name="password" type="password" placeholder="password" required />
+            <input id="adminPasswordInput" name="password" type="password" placeholder="비밀번호 입력" required />
             <button id="adminLoginButton" class="btn primary" type="submit">로그인</button>
           </form>
           <div id="adminLoginMessage" class="message" role="status" aria-live="polite"></div>

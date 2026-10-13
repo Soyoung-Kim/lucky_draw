@@ -28,20 +28,17 @@ export function renderDrawStage(container, state) {
   renderCapsule(container, state);
 }
 
-export function renderResultsList(container, results = [], options = {}) {
+export function renderResultsList(container, results = []) {
   if (!container) return;
-
-  const showRank = options.showRank !== false;
-  container.classList.toggle("plain-results", !showRank);
 
   if (results.length === 0) {
     container.innerHTML = "";
     return;
   }
 
-  container.innerHTML = results
-    .map((result) =>
-      showRank ? `<li>${result.rank}등 ${result.participant_name}</li>` : `<li>${result.participant_name}</li>`,
-    )
-    .join("");
+  container.replaceChildren(...results.map((result) => {
+    const item = document.createElement("li");
+    item.textContent = result.participant_name;
+    return item;
+  }));
 }
