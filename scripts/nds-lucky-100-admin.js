@@ -153,7 +153,7 @@ function render() {
   $("board").style.setProperty("--board-rows", Math.ceil(event.max_slots / 10));
   $("board").style.gridTemplateColumns = `repeat(${Math.min(10, event.max_slots)}, minmax(0, 1fr))`;
   $("closedInfo").textContent = event.closed_at ? `마감 ${new Date(event.closed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · ${event.closed_participant_count}명 확정` : "";
-  const link = new URL("../nds_lucky_100/", location.href); link.searchParams.set("event", event.id); $("entryLink").value = link.href;
+  const link = new URL("../lucky-pick/", location.href); link.searchParams.set("event", event.id); $("entryLink").value = link.href;
   events = [event, ...events.filter((row) => row.id !== event.id)].sort((a, b) => b.created_at.localeCompare(a.created_at));
   renderEventOptions();
   if (event.winner_limit) $("winnerCount").value = String(event.winner_limit);
