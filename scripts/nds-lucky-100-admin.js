@@ -284,18 +284,36 @@ async function revealWinner() {
   const start = performance.now();
   try {
     await new Promise((resolve) => {
-      function frame(now) {
-        const elapsed = now - start;
+      let finished = false, frameId = null;
+      function finish() {
+        if (finished) return;
+        finished = true;
+        clearTimeout(fallback);
+        if (frameId !== null) cancelAnimationFrame(frameId);
         $("board").querySelectorAll(".highlight").forEach((node) => node.classList.remove("highlight"));
-        if (elapsed >= duration) { resolve(); return; }
+        resolve();
+      }
+      // Finish even when the browser suspends frames or a visual effect fails.
+      const fallback = setTimeout(finish, duration + 300);
+      function frame(now) {
+        if (finished) return;
+        try {
+        // RAF timestamps can precede performance.now() within the same browser frame.
+        const elapsed = Math.max(0, now - start);
+        $("board").querySelectorAll(".highlight").forEach((node) => node.classList.remove("highlight"));
+        if (elapsed >= duration || !candidates.length) { finish(); return; }
         // Numbers are visual effects only; the actual winner is already saved on the server.
         const index = Math.floor(35 * Math.log1p(elapsed / 400)) % candidates.length;
         const candidate = candidates[index];
         $("popupNumber").textContent = candidate.slot_number;
         $("board").querySelector(`[data-slot="${candidate.slot_number}"]`)?.classList.add("highlight");
-        requestAnimationFrame(frame);
+        frameId = requestAnimationFrame(frame);
+        } catch (error) {
+          console.error("Winner animation interrupted", error);
+          finish();
+        }
       }
-      requestAnimationFrame(frame);
+      frameId = requestAnimationFrame(frame);
     });
     $("popupNumber").textContent = participant.slot_number;
     $("popupName").textContent = participant.display_name;
