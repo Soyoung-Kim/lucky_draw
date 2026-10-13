@@ -20,7 +20,7 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   // Only signed sessions accepted for new endpoints; do not accept the legacy static token.
   const admin = await verifyAdminAccess({ admin_session_token: payload.admin_session_token });
   if (admin.admin_id !== Deno.env.get("ADMIN_ID")) throw new HttpError("Invalid admin session", 401);
-  if (typeof action !== "string" || !["create", "board", "close", "update", "delete", "draw", "finish"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
+  if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
   const eventId = action === "create" ? null : uuid(payload.event_id);
   const data: Record<string, unknown> = {};
   if (action === "create") {
@@ -31,18 +31,25 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   if (action === "update") data.name = name(payload.name);
   const client = getServiceClient();
   if (action === "draw") {
-    if (payload.winner_count !== 2 && payload.winner_count !== 3) throw new HttpError("INVALID_WINNER_COUNT", 400);
+    if (typeof payload.winner_count !== "number" || !Number.isInteger(payload.winner_count) || payload.winner_count < 1 || payload.winner_count > 10) throw new HttpError("INVALID_WINNER_COUNT", 400);
     // closed events cannot be edited. Concurrent draws are resolved under the DB event lock.
     const { data: snapshot, error } = await client.rpc("nds_lucky_100_admin", { p_action: "board", p_event: eventId, p_actor: admin.admin_id, p_data: {} });
-    if (error) throw new HttpError("Failed to load candidates", 500);
+    if (error) {
+      console.error("NDS admin candidate RPC failed", { code: error.code, message: error.message });
+      throw new HttpError("Failed to load candidates", 500, { db_code: error.code });
+    }
     if (snapshot.error) return result(snapshot);
     if (snapshot.event.status !== "closed" && !["drawing", "completed"].includes(snapshot.event.status)) return result({ error: "NOT_CLOSED" });
     if (["drawing", "completed"].includes(snapshot.event.status)) return result(snapshot);
     if (snapshot.participants.length < payload.winner_count) return result({ error: "NOT_ENOUGH_PARTICIPANTS" });
     data.winner_count = payload.winner_count;
+    data.candidate_ids = snapshot.participants.map((p: { id: string }) => p.id);
     data.participant_ids = secureShuffle<{ id: string }>(snapshot.participants).slice(0, payload.winner_count).map((p) => p.id);
   }
   const { data: response, error } = await client.rpc("nds_lucky_100_admin", { p_action: action, p_event: eventId, p_actor: admin.admin_id, p_data: data });
-  if (error) throw new HttpError("Failed to process admin request", 500);
+  if (error) {
+    console.error("NDS admin RPC failed", { action, code: error.code, message: error.message });
+    throw new HttpError("Failed to process admin request", 500, { db_code: error.code });
+  }
   return result(response);
 }));

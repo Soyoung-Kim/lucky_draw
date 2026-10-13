@@ -4,7 +4,7 @@ create table public.nds_lucky_100_events (
   title text not null check (char_length(btrim(title)) between 1 and 120),
   status text not null default 'registration' check (status in ('registration','closed','drawing','completed')),
   max_slots integer not null default 100 check (max_slots = 100),
-  winner_limit integer check (winner_limit in (2,3)),
+  winner_limit integer check (winner_limit between 1 and 10),
   closed_at timestamptz,
   closed_participant_count integer,
   created_at timestamptz not null default now()
@@ -22,7 +22,7 @@ create table public.nds_lucky_100_winners (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.nds_lucky_100_events(id),
   participant_id uuid not null,
-  prize_rank integer not null check (prize_rank between 1 and 3),
+  prize_rank integer not null check (prize_rank between 1 and 10),
   created_at timestamptz not null default now(),
   foreign key(event_id,participant_id) references public.nds_lucky_100_participants(event_id,id),
   unique(event_id,participant_id), unique(event_id,prize_rank)
@@ -113,13 +113,20 @@ begin
     if p_action='board' then
       return jsonb_build_object('event',to_jsonb(e),'participants',
         (select coalesce(jsonb_agg(to_jsonb(t) order by t.slot_number),'[]') from public.nds_lucky_100_participants t where event_id=e.id),
-        'winners',(select coalesce(jsonb_agg(jsonb_build_object('prize_rank',w.prize_rank,'participant_id',p.id,'slot_number',p.slot_number,'display_name',p.display_name) order by w.prize_rank),'[]')
-          from public.nds_lucky_100_winners w join public.nds_lucky_100_participants p on p.id=w.participant_id where w.event_id=e.id));
+        'winners',(select coalesce(jsonb_agg(jsonb_build_object('prize_rank',w.prize_rank,'participant_id',participant_row.id,'slot_number',participant_row.slot_number,'display_name',participant_row.display_name) order by w.prize_rank),'[]')
+          from public.nds_lucky_100_winners w join public.nds_lucky_100_participants participant_row on participant_row.id=w.participant_id where w.event_id=e.id));
     elsif p_action='close' then
       if e.status='registration' then
         select count(*) into v_count from public.nds_lucky_100_participants where event_id=e.id;
         update public.nds_lucky_100_events set status='closed',closed_at=clock_timestamp(),closed_participant_count=v_count where id=e.id returning * into e;
       else return jsonb_build_object('event',to_jsonb(e)); end if;
+    elsif p_action='reopen' then
+      if e.status='registration' then return jsonb_build_object('event',to_jsonb(e)); end if;
+      if e.status<>'closed' or exists(select 1 from public.nds_lucky_100_winners where event_id=e.id) then
+        return jsonb_build_object('error','DRAW_ALREADY_STARTED');
+      end if;
+      p_data := p_data || jsonb_build_object('previous_closed_at',e.closed_at,'previous_closed_participant_count',e.closed_participant_count);
+      update public.nds_lucky_100_events set status='registration',closed_at=null,closed_participant_count=null where id=e.id returning * into e;
     elsif p_action in ('update','delete') then
       if e.status <> 'registration' then return jsonb_build_object('error','CLOSED'); end if;
       select * into p from public.nds_lucky_100_participants where event_id=e.id and id=(p_data->>'participant_id')::uuid;
@@ -138,9 +145,16 @@ begin
       end if;
       if e.status <> 'closed' then return jsonb_build_object('error','NOT_CLOSED'); end if;
       v_limit := (p_data->>'winner_count')::integer;
-      if v_limit is null or v_limit not in (2,3) then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
+      if v_limit is null or v_limit not between 1 and 10 then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
       select count(*) into v_count from public.nds_lucky_100_participants where event_id=e.id;
       if v_count < v_limit then return jsonb_build_object('error','NOT_ENOUGH_PARTICIPANTS'); end if;
+      if jsonb_typeof(p_data->'candidate_ids') is distinct from 'array'
+        or jsonb_array_length(p_data->'candidate_ids') <> v_count
+        or (select count(distinct value::uuid) from jsonb_array_elements_text(p_data->'candidate_ids')) <> v_count
+        or exists(select id from public.nds_lucky_100_participants where event_id=e.id
+          except select value::uuid from jsonb_array_elements_text(p_data->'candidate_ids')) then
+        return jsonb_build_object('error','CANDIDATES_CHANGED');
+      end if;
       select array_agg(value::uuid) into v_ids from jsonb_array_elements_text(p_data->'participant_ids');
       if coalesce(cardinality(v_ids),0) <> v_limit or (select count(distinct x) from unnest(v_ids) x) <> v_limit
         or (select count(*) from public.nds_lucky_100_participants where event_id=e.id and id=any(v_ids)) <> v_limit then

@@ -6,7 +6,9 @@ function message(text = "") { $("message").textContent = text; }
 function controls() {
   document.querySelectorAll("button,select").forEach((element) => { element.disabled = busy; });
   const status = snapshot?.event.status;
-  $("close").disabled = busy || status !== "registration";
+  $("close").disabled = busy || !["registration", "closed"].includes(status);
+  $("close").textContent = status === "closed" ? "접수 재개" : "접수 마감";
+  $("close").className = status === "closed" ? "secondary" : "danger";
   $("draw").disabled = busy || status !== "closed" || (snapshot?.participants.length ?? 0) < Number($("winnerCount").value);
   $("winnerCount").disabled = busy || status !== "closed";
   $("finish").disabled = busy || status !== "drawing";
@@ -29,6 +31,8 @@ async function api(action, payload = {}) {
     body: JSON.stringify({ action, event_id: eventId, admin_session_token: token, ...payload }), signal: AbortSignal.timeout(20000),
   }); } catch { throw new Error("연결에 실패했습니다. 작업이 처리되었을 수 있으니 기존 행사 ID로 새로고침해 확인해 주세요."); }
   const data = await response.json().catch(() => ({}));
+  if (data.error === "DRAW_ALREADY_STARTED") throw new Error("추첨이 시작된 이후에는 접수를 재개할 수 없습니다. 새로고침해 주세요.");
+  if (data.error === "CANDIDATES_CHANGED") throw new Error("접수 재개로 참가 명단이 변경되었습니다. 새로고침 후 다시 추첨해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
@@ -53,6 +57,7 @@ function render() {
   $("closedInfo").textContent = event.closed_at ? `마감 ${new Date(event.closed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · ${event.closed_participant_count}명 확정` : "";
   const link = new URL("../nds_lucky_100/", location.href); link.searchParams.set("event", event.id); $("entryLink").value = link.href;
   $("eventInput").value = event.id;
+  if (event.winner_limit) $("winnerCount").value = String(event.winner_limit);
   const url = new URL(location.href); url.searchParams.set("event", event.id); history.replaceState(null, "", url);
   $("board").replaceChildren();
   for (let n = 1; n <= 100; n++) {
@@ -100,8 +105,9 @@ $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); co
 $("refresh").addEventListener("click", () => run(() => refresh()));
 $("winnerCount").addEventListener("change", controls);
 $("close").addEventListener("click", () => {
-  if (!confirm("지금 마감하면 이후 신규 참여가 불가능합니다. 마감하시겠습니까?")) return;
-  run(async () => { await api("close"); await refresh(); });
+  const reopen = snapshot?.event.status === "closed";
+  if (!confirm(reopen ? "접수를 재개하면 신규 참가와 정보 수정이 다시 허용됩니다. 접수를 재개하시겠습니까?" : "지금 마감하면 이후 신규 참여가 불가능합니다. 마감하시겠습니까?")) return;
+  run(async () => { await api(reopen ? "reopen" : "close"); await refresh(); });
 });
 $("editForm").addEventListener("submit", (event) => {
   event.preventDefault(); const p = editing;

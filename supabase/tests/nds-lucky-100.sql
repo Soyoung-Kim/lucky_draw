@@ -5,6 +5,8 @@ declare e uuid; r jsonb; p1 uuid; p2 uuid;
 begin
   r := public.nds_lucky_100_admin('create',null,'test','{"title":"API verification"}');
   e := (r->'event'->>'id')::uuid;
+  r := public.nds_lucky_100_admin('board',e,'test');
+  assert jsonb_array_length(r->'participants')=0 and jsonb_array_length(r->'winners')=0, 'new event board failed';
   r := public.nds_lucky_100_public('register',e,'  Alice   Kim  ',17);
   assert (r->>'own_slot')::integer = 17, 'registration failed';
   r := public.nds_lucky_100_public('lookup',e,'alice kim');
@@ -25,11 +27,13 @@ begin
   select id into p2 from public.nds_lucky_100_participants where event_id=e and slot_number=92;
   r := public.nds_lucky_100_admin('delete',e,'test',jsonb_build_object('participant_id',p1));
   assert r->>'error'='CLOSED', 'candidate snapshot changed after close';
-  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p1,p1)));
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('candidate_ids',jsonb_build_array(p1,p2),'winner_count',2,'participant_ids',jsonb_build_array(p1,p1)));
   assert r->>'error'='INVALID_CANDIDATES', 'duplicate winner allowed';
-  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p1,p2)));
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('candidate_ids',jsonb_build_array(p1,p2),'winner_count',2,'participant_ids',jsonb_build_array(p1,p2)));
   assert jsonb_array_length(r->'winners')=2 and r->'event'->>'status'='drawing';
-  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p2,p1)));
+  r := public.nds_lucky_100_admin('board',e,'test');
+  assert jsonb_array_length(r->'winners')=2 and (r->'winners'->0->>'slot_number')::integer=17, 'winner board failed';
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('candidate_ids',jsonb_build_array(p1,p2),'winner_count',2,'participant_ids',jsonb_build_array(p2,p1)));
   assert (r->'winners'->0->>'participant_id')::uuid=p1, 'repeat draw changed result';
   r := public.nds_lucky_100_admin('finish',e,'test');
   assert r->'event'->>'status'='completed';

@@ -74,6 +74,7 @@ async function refreshBoard() {
   renderBoard();
 }
 async function lookup() {
+  $("participantName").textContent = state.name;
   const data = await request("lookup", { name: state.name });
   state.status = validateStatus(data.event_status);
   if (typeof data.is_registered !== "boolean") throw new Error("참가 여부를 확인하지 못했습니다. 다시 시도해 주세요.");
@@ -116,7 +117,7 @@ $("registerButton").addEventListener("click", async () => {
   } finally { busy(false); }
 });
 async function sync() {
-  if (document.hidden || state.busy || !state.name || state.registered || $("boardSection").hidden) return;
+  if (document.hidden || state.busy || !state.name || state.registered) return;
   busy(true);
   try { await refreshBoard(); message(); } catch (error) { state.fresh = false; message(error.message); } finally { busy(false); }
 }
