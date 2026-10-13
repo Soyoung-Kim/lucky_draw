@@ -327,6 +327,40 @@ $("deleteParticipant").addEventListener("click", () => {
 $("cancelEdit").addEventListener("click", () => $("editDialog").close());
 $("editDialog").addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
 $("finish").addEventListener("click", () => { if (confirm("행사를 종료하고 결과를 보존하시겠습니까?")) run(async () => { await api("finish"); await refresh(); }); });
+function celebrateWinner() {
+  $("winnerPopup").querySelectorAll(".celebration-layer").forEach((layer) => layer.remove());
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const layer = document.createElement("div");
+  layer.className = "celebration-layer"; layer.setAttribute("aria-hidden", "true");
+  const colors = ["#ffd166", "#ef476f", "#06d6a0", "#63b3ff", "#c4a1ff", "#fff5b8"];
+  for (let i = 0; i < 96; i++) {
+    const piece = document.createElement("i"); piece.className = "confetti-piece";
+    const left = i % 2 === 0;
+    piece.style.setProperty("--start", left ? "8%" : "92%");
+    piece.style.setProperty("--flight", `${(left ? 1 : -1) * (80 + Math.random() * 600)}px`);
+    piece.style.setProperty("--rise", `${-80 - Math.random() * 280}px`);
+    piece.style.setProperty("--spin", `${(Math.random() - .5) * 1800}deg`);
+    piece.style.setProperty("--delay", `${Math.random() * .35}s`);
+    piece.style.setProperty("--color", colors[i % colors.length]);
+    layer.append(piece);
+  }
+  for (let burst = 0; burst < 3; burst++) {
+    const firework = document.createElement("div"); firework.className = "firework-burst";
+    firework.style.left = `${20 + burst * 30}%`; firework.style.top = `${15 + (burst % 2) * 12}%`;
+    for (let ray = 0; ray < 16; ray++) {
+      const spark = document.createElement("i"); spark.className = "firework-spark";
+      const angle = ray * Math.PI / 8;
+      spark.style.setProperty("--x", `${Math.cos(angle) * 110}px`);
+      spark.style.setProperty("--y", `${Math.sin(angle) * 110}px`);
+      spark.style.setProperty("--delay", `${burst * .2}s`);
+      spark.style.setProperty("--color", colors[(burst + ray) % colors.length]);
+      firework.append(spark);
+    }
+    layer.append(firework);
+  }
+  $("winnerPopup").append(layer);
+  setTimeout(() => layer.remove(), 4200);
+}
 async function revealWinner() {
   const winner = [...snapshot.winners].sort((a, b) => a.prize_rank - b.prize_rank)[revealedCount];
   if (!winner) return;
@@ -384,6 +418,7 @@ async function revealWinner() {
     $("popupName").textContent = participant.display_name;
     $("popupTitle").textContent = "✦ 당첨을 축하합니다!";
     $("winnerPopup").classList.add("celebrate");
+    celebrateWinner();
     revealedCount++; rememberReveal();
   } finally { animating = false; render(); }
 }
