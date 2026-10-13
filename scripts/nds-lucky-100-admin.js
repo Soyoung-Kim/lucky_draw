@@ -4,6 +4,7 @@ const labels = { registration: "접수 중", closed: "접수 마감", drawing: "
 let token = "", eventId = new URLSearchParams(location.search).get("event") ?? "", snapshot = null, busy = false, editing = null, animating = false;
 const sessionKey = "nds_lucky_100_admin_session";
 let expiresAt = 0;
+let syncTask = null;
 function clearSession() {
   expiresAt = 0;
   try { sessionStorage.removeItem(sessionKey); } catch { /* Storage can be blocked by browser settings. */ }
@@ -78,17 +79,22 @@ async function api(action, payload = {}) {
   if (data.error === "DRAW_ALREADY_STARTED") throw new Error("추첨이 시작된 이후에는 접수를 재개할 수 없습니다. 새로고침해 주세요.");
   if (data.error === "CANDIDATES_CHANGED") throw new Error("접수 재개로 참가 명단이 변경되었습니다. 새로고침 후 다시 추첨해 주세요.");
   if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
+  if (data.error === "INVALID_ACTION") throw new Error("서버 API에 이 기능이 아직 반영되지 않았습니다. nds-lucky-100-admin을 최신 코드로 재배포해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
-    throw new Error(errors[data.error] ?? (response.status === 401 ? "ID와 비밀번호 또는 로그인 만료 여부를 확인해 주세요." : response.status === 404 ? "관리자 API가 아직 배포되지 않았습니다." : "요청을 처리하지 못했습니다. 서버 설정과 연결을 확인해 주세요."));
+    throw new Error(errors[data.error] ?? (response.status === 401 ? "ID와 비밀번호 또는 로그인 만료 여부를 확인해 주세요." : response.status === 404 ? "관리자 API가 아직 배포되지 않았습니다." : `요청을 처리하지 못했습니다. (${data.error ?? response.status}${data.details?.db_code ? ` / DB ${data.details.db_code}` : ""})`));
   }
   return data;
 }
 async function run(task) {
   if (busy) return;
   busy = true; controls(); message();
-  try { await task(); } catch (error) { message(error.message); if ($("editDialog").open) $("editMessage").textContent = error.message; }
+  try {
+    // A click during a background refresh must wait, rather than be silently discarded.
+    if (syncTask) await syncTask;
+    await task();
+  } catch (error) { message(error.message); if ($("editDialog").open) $("editMessage").textContent = error.message; }
   finally { busy = false; controls(); }
 }
 function validate(data) {
@@ -163,6 +169,11 @@ $("seedForm").addEventListener("submit", (event) => {
     seeding = true; controls();
     let response;
     try { response = await api("seed", { count }); }
+    catch (error) {
+      // Some inserts can commit before a network timeout. Restore the actual board first.
+      if (token) { try { await refresh(); } catch { /* Preserve the original failure. */ } }
+      throw error;
+    }
     finally { seeding = false; }
     await refresh();
     message(response.inserted_count === count ? `테스트 참가자 ${count}명을 등록했습니다.` : `${count}명 중 ${response.inserted_count}명을 등록했습니다. 접수 상태와 남은 번호를 확인해 주세요.`);
@@ -236,11 +247,10 @@ document.addEventListener("keydown", (event) => { if (event.key === "Escape") ex
 async function sync() {
   if (token && expiresAt <= Date.now()) { logout(); message("로그인이 만료되었습니다. 다시 로그인해 주세요."); return; }
   // Poll only while attendees can register. Quiet refreshes do not flash loading controls.
-  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || document.hidden || $("editDialog").open) return;
-  busy = true;
-  try { await refresh(); }
-  catch (error) { message(error.message); }
-  finally { busy = false; controls(); }
+  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || syncTask || document.hidden || $("editDialog").open) return;
+  syncTask = refresh().catch((error) => message(error.message));
+  try { await syncTask; }
+  finally { syncTask = null; controls(); }
 }
 setInterval(sync, 5000); window.addEventListener("online", sync); document.addEventListener("visibilitychange", sync);
 $("eventInput").value = eventId; controls();
