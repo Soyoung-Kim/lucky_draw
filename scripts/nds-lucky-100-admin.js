@@ -54,7 +54,10 @@ function restoreSession() {
   } catch { /* Invalid saved sessions require a fresh login. */ }
   clearSession();
 }
-function message(text = "") { $("message").textContent = text; $("stageMessage").textContent = text; }
+function message(text = "") {
+  $("message").textContent = text; $("stageMessage").textContent = text;
+  if ($("createDialog").open) $("createMessage").textContent = text;
+}
 function controls() {
   document.querySelectorAll("button,select").forEach((element) => { element.disabled = busy; });
   const status = snapshot?.event.status;
@@ -95,6 +98,7 @@ function logout() {
   clearSession();
   token = ""; snapshot = null; editing = null;
   if ($("editDialog").open) $("editDialog").close();
+  if ($("createDialog").open) $("createDialog").close();
   document.body.classList.remove("presenting");
   $("dashboard").hidden = true; $("loginPanel").hidden = false; $("logout").hidden = true;
   $("eventPanel").hidden = true; $("exitPresentation").hidden = true;
@@ -237,6 +241,12 @@ $("loginForm").addEventListener("submit", (event) => {
   });
 });
 $("logout").addEventListener("click", logout);
+$("openCreate").addEventListener("click", () => {
+  $("createForm").reset(); $("createMessage").textContent = "";
+  $("createDialog").showModal(); $("titleInput").focus();
+});
+$("cancelCreate").addEventListener("click", () => $("createDialog").close());
+$("createDialog").addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
 $("createForm").addEventListener("submit", (event) => {
   event.preventDefault(); const title = $("titleInput").value.trim(); if (!title) return;
   if (!confirm(`“${title}” 행사를 새로 생성하시겠습니까?`)) return;
@@ -244,8 +254,12 @@ $("createForm").addEventListener("submit", (event) => {
     const requestedSlots = Number($("initialSlots").value);
     const data = await api("create", { title, max_slots: requestedSlots });
     eventId = data.event.id;
+    events = [data.event, ...events.filter((row) => row.id !== eventId)];
+    renderEventOptions();
+    $("createDialog").close();
     const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url);
     await refresh();
+    $("eventInput").focus();
     if (snapshot.event.max_slots !== requestedSlots) {
       message(`요청한 ${requestedSlots}칸과 실제 생성된 ${snapshot.event.max_slots}칸이 다릅니다. 최신 칸 수 변경 SQL 적용과 관리자 API 재배포가 필요합니다. 이 행사는 이미 생성되었으므로 다시 생성하지 말고 적용 후 칸 추가를 사용해 주세요.`);
     }
@@ -408,7 +422,7 @@ document.addEventListener("keydown", (event) => { if (event.key === "Escape") ex
 async function sync() {
   if (token && expiresAt <= Date.now()) { logout(); message("로그인이 만료되었습니다. 다시 로그인해 주세요."); return; }
   // Poll only while attendees can register. Quiet refreshes do not flash loading controls.
-  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || syncTask || inlineEditing || document.hidden || $("editDialog").open) return;
+  if (!token || !eventId || snapshot?.event.status !== "registration" || busy || syncTask || inlineEditing || document.hidden || $("editDialog").open || $("createDialog").open) return;
   syncTask = refresh().catch((error) => message(error.message));
   try { await syncTask; }
   finally { syncTask = null; controls(); }
