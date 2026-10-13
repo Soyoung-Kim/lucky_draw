@@ -79,7 +79,8 @@ async function api(action, payload = {}) {
   if (data.error === "DRAW_ALREADY_STARTED") throw new Error("추첨이 시작된 이후에는 접수를 재개할 수 없습니다. 새로고침해 주세요.");
   if (data.error === "CANDIDATES_CHANGED") throw new Error("접수 재개로 참가 명단이 변경되었습니다. 새로고침 후 다시 추첨해 주세요.");
   if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
-  if (data.error === "INVALID_ACTION") throw new Error("서버 API에 이 기능이 아직 반영되지 않았습니다. nds-lucky-100-admin을 최신 코드로 재배포해 주세요.");
+  if (data.error === "INVALID_ACTION") throw new Error("서버 API 또는 DB 함수에 이 기능이 반영되지 않았습니다. 최신 접수 재개 SQL 적용과 관리자 API 배포를 확인해 주세요.");
+  if (data.error === "DB_UPDATE_REQUIRED") throw new Error("DB의 접수 재개 함수가 구버전입니다. 최신 접수 재개 SQL을 적용해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
@@ -189,6 +190,11 @@ $("close").addEventListener("click", () => {
       render();
     }
     await refresh();
+    const expected = reopen ? "registration" : "closed";
+    if (snapshot?.event.status !== expected) {
+      throw new Error(reopen ? "서버에서 접수 재개가 확인되지 않았습니다. DB 함수 적용 상태를 확인해 주세요." : "서버에서 접수 마감이 확인되지 않았습니다. 현재 행사 상태를 확인해 주세요.");
+    }
+    message(reopen ? "접수를 재개했습니다. ‘접수 마감’과 테스트 참가자 넣기를 사용할 수 있습니다." : "접수를 마감했습니다. 추첨 전에는 다시 재개할 수 있습니다.");
   });
 });
 $("editForm").addEventListener("submit", (event) => {

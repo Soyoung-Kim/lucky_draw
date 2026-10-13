@@ -87,5 +87,6 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     console.error("NDS admin RPC failed", { action, code: error.code, message: error.message });
     throw new HttpError("Failed to process admin request", 500, { db_code: error.code });
   }
+  if (action === "reopen" && response.error === "INVALID_ACTION") return result({ error: "DB_UPDATE_REQUIRED" });
   return result(response);
 }));
