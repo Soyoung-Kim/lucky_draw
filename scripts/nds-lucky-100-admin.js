@@ -74,6 +74,8 @@ function controls() {
   $("popupNext").hidden = !canReveal;
   $("revealProgress").textContent = snapshot?.winners.length ? `${revealedCount} / ${snapshot.winners.length}명 공개` : "당첨 인원은 운영 화면에서 선택합니다.";
   $("winnerCount").disabled = busy || status !== "closed";
+  $("stageWinnerCount").disabled = $("winnerCount").disabled;
+  $("stageWinnerCount").value = $("winnerCount").value;
   $("finish").disabled = busy || status !== "drawing" || canReveal;
   $("csv").disabled = busy || !snapshot?.winners.length || canReveal;
   $("seedButton").disabled = busy || status !== "registration";
@@ -270,6 +272,10 @@ $("eventInput").addEventListener("change", () => { const id = $("eventInput").va
 $("refreshEvents").addEventListener("click", () => run(loadEventOptions));
 $("refresh").addEventListener("click", () => run(() => refresh()));
 $("winnerCount").addEventListener("change", controls);
+$("stageWinnerCount").addEventListener("change", () => {
+  $("winnerCount").value = $("stageWinnerCount").value;
+  controls();
+});
 let seeding = false;
 $("testReopen").addEventListener("click", () => $("close").click());
 $("seedForm").addEventListener("submit", (event) => {
