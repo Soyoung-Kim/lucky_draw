@@ -1,0 +1,41 @@
+-- Run after migration as postgres in Supabase SQL Editor. All changes roll back.
+begin;
+do $$
+declare e uuid; r jsonb; p1 uuid; p2 uuid;
+begin
+  r := public.nds_lucky_100_admin('create',null,'test','{"title":"API verification"}');
+  e := (r->'event'->>'id')::uuid;
+  r := public.nds_lucky_100_public('register',e,'  Alice   Kim  ',17);
+  assert (r->>'own_slot')::integer = 17, 'registration failed';
+  r := public.nds_lucky_100_public('lookup',e,'alice kim');
+  assert (r->>'is_registered')::boolean and (r->>'own_slot')::integer=17, 'name normalization failed';
+  r := public.nds_lucky_100_public('register',e,'ALICE KIM',18);
+  assert r->>'error'='ALREADY_NAME', 'duplicate name allowed';
+  r := public.nds_lucky_100_public('register',e,'Bob',17);
+  assert r->>'error'='SLOT_TAKEN', 'duplicate slot allowed';
+  r := public.nds_lucky_100_public('register',e,'Bob',92);
+  assert (r->>'own_slot')::integer=92;
+  r := public.nds_lucky_100_public('board',e);
+  assert r->'occupied_slots'='[17,92]'::jsonb and not (r ? 'participants'), 'public board leaked names';
+  r := public.nds_lucky_100_admin('close',e,'test');
+  assert (r->'event'->>'closed_participant_count')::integer=2;
+  r := public.nds_lucky_100_public('register',e,'Carol',1);
+  assert r->>'error'='CLOSED', 'registration allowed after close';
+  select id into p1 from public.nds_lucky_100_participants where event_id=e and slot_number=17;
+  select id into p2 from public.nds_lucky_100_participants where event_id=e and slot_number=92;
+  r := public.nds_lucky_100_admin('delete',e,'test',jsonb_build_object('participant_id',p1));
+  assert r->>'error'='CLOSED', 'candidate snapshot changed after close';
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p1,p1)));
+  assert r->>'error'='INVALID_CANDIDATES', 'duplicate winner allowed';
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p1,p2)));
+  assert jsonb_array_length(r->'winners')=2 and r->'event'->>'status'='drawing';
+  r := public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',2,'participant_ids',jsonb_build_array(p2,p1)));
+  assert (r->'winners'->0->>'participant_id')::uuid=p1, 'repeat draw changed result';
+  r := public.nds_lucky_100_admin('finish',e,'test');
+  assert r->'event'->>'status'='completed';
+  assert not has_table_privilege('anon','public.nds_lucky_100_participants','SELECT'), 'anon can read names';
+  assert not has_table_privilege('anon','public.nds_lucky_100_participants','INSERT'), 'anon can insert';
+  assert not has_function_privilege('anon','public.nds_lucky_100_public(text,uuid,text,integer)','EXECUTE'), 'anon can bypass Edge API';
+  assert not has_function_privilege('authenticated','public.nds_lucky_100_admin(text,uuid,text,jsonb)','EXECUTE'), 'authenticated can bypass admin auth';
+end $$;
+rollback;
