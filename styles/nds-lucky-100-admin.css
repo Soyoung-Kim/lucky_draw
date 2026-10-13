@@ -45,3 +45,4 @@ body.presenting .winners {
   flex-shrink: 0;
 }
 .slot-add{align-items:center}.slot-add input{width:78px;min-height:42px}.slot-add label{white-space:nowrap}body.presenting .admin-board{grid-template-rows:repeat(var(--board-rows,10),minmax(44px,1fr));min-height:calc(var(--board-rows,10)*44px + (var(--board-rows,10) - 1)*1vh)}
+.setup select{width:100%;min-width:0;white-space:normal}.setup #loadForm .inline{flex-wrap:wrap}.setup #eventInput{flex-basis:100%}

@@ -21,6 +21,19 @@ Deno.serve((req) => withJsonHandler(req, async () => {
   // Only signed sessions accepted for new endpoints; do not accept the legacy static token.
   const admin = await verifyAdminAccess({ admin_session_token: payload.admin_session_token });
   if (admin.admin_id !== Deno.env.get("ADMIN_ID")) throw new HttpError("Invalid admin session", 401);
+  if (action === "list") {
+    const client = getServiceClient();
+    const events = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data: rows, error } = await client.from("nds_lucky_100_events")
+        .select("id,title,status,created_at,max_slots").order("created_at", { ascending: false }).order("id")
+        .range(offset, offset + 499);
+      if (error) throw new HttpError("Failed to list events", 500);
+      events.push(...(rows ?? []));
+      if (!rows || rows.length < 500) break;
+    }
+    return jsonResponse({ success: true, events });
+  }
   if (typeof action !== "string" || !["create", "board", "close", "reopen", "update", "delete", "draw", "finish", "seed", "register", "add_slots"].includes(action)) throw new HttpError("INVALID_ACTION", 400);
   const eventId = action === "create" ? null : uuid(payload.event_id);
   const data: Record<string, unknown> = {};

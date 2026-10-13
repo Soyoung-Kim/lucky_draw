@@ -7,6 +7,25 @@ let expiresAt = 0;
 let syncTask = null;
 let revealedCount = 0;
 let inlineEditing = null;
+let events = [];
+const eventLabels = { registration: "진행중", closed: "접수마감", drawing: "추첨중", completed: "추첨완료" };
+function renderEventOptions() {
+  const select = $("eventInput");
+  select.replaceChildren();
+  const empty = document.createElement("option"); empty.value = ""; empty.textContent = events.length ? "행사를 선택해 주세요" : "등록된 행사가 없습니다"; select.append(empty);
+  for (const event of events) {
+    const option = document.createElement("option"); option.value = event.id;
+    const date = new Date(event.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+    option.textContent = `${event.title} · ${eventLabels[event.status] ?? event.status} · 생성일 ${date}`;
+    select.append(option);
+  }
+  select.value = eventId;
+}
+async function loadEventOptions() {
+  const data = await api("list");
+  if (!Array.isArray(data.events)) throw new Error("행사 목록을 불러오지 못했습니다.");
+  events = data.events; renderEventOptions();
+}
 function rememberReveal() {
   try { sessionStorage.setItem(`nds_reveal_${eventId}`, String(revealedCount)); } catch { /* Presentation still works without storage. */ }
 }
@@ -29,7 +48,7 @@ function restoreSession() {
     if (typeof saved?.token === "string" && saved.token && Number.isFinite(saved.expiresAt) && saved.expiresAt > Date.now()) {
       token = saved.token; expiresAt = saved.expiresAt;
       $("loginPanel").hidden = true; $("dashboard").hidden = false; $("logout").hidden = false;
-      if (eventId) run(() => refresh());
+      run(async () => { await loadEventOptions(); if (eventId) await refresh(); });
       return;
     }
   } catch { /* Invalid saved sessions require a fresh login. */ }
@@ -79,6 +98,7 @@ function logout() {
   document.body.classList.remove("presenting");
   $("dashboard").hidden = true; $("loginPanel").hidden = false; $("logout").hidden = true;
   $("eventPanel").hidden = true; $("exitPresentation").hidden = true;
+  events = []; $("eventInput").replaceChildren();
   $("board").replaceChildren(); $("winners").replaceChildren(); $("announcement").textContent = "";
   $("winnerPopup").hidden = true;
 }
@@ -130,7 +150,8 @@ function render() {
   $("board").style.gridTemplateColumns = `repeat(${Math.min(10, event.max_slots)}, minmax(0, 1fr))`;
   $("closedInfo").textContent = event.closed_at ? `마감 ${new Date(event.closed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · ${event.closed_participant_count}명 확정` : "";
   const link = new URL("../nds_lucky_100/", location.href); link.searchParams.set("event", event.id); $("entryLink").value = link.href;
-  $("eventInput").value = event.id;
+  events = [event, ...events.filter((row) => row.id !== event.id)].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  renderEventOptions();
   if (event.winner_limit) $("winnerCount").value = String(event.winner_limit);
   const url = new URL(location.href); url.searchParams.set("event", event.id); history.replaceState(null, "", url);
   $("board").replaceChildren();
@@ -211,6 +232,7 @@ $("loginForm").addEventListener("submit", (event) => {
   event.preventDefault(); run(async () => {
     const data = await api("login", { admin_id: $("adminId").value.trim(), password: $("password").value });
     saveSession(data); $("password").value = ""; $("loginPanel").hidden = true; $("dashboard").hidden = false; $("logout").hidden = false;
+    await loadEventOptions();
     if (eventId) await refresh();
   });
 });
@@ -221,6 +243,8 @@ $("createForm").addEventListener("submit", (event) => {
   run(async () => { const data = await api("create", { title, max_slots: Number($("initialSlots").value) }); eventId = data.event.id; $("eventInput").value = eventId; const url = new URL(location.href); url.searchParams.set("event", eventId); history.replaceState(null, "", url); await refresh(); });
 });
 $("loadForm").addEventListener("submit", (event) => { event.preventDefault(); const id = $("eventInput").value.trim(); run(() => refresh(id)); });
+$("eventInput").addEventListener("change", () => { const id = $("eventInput").value; if (id) run(() => refresh(id)); });
+$("refreshEvents").addEventListener("click", () => run(loadEventOptions));
 $("refresh").addEventListener("click", () => run(() => refresh()));
 $("winnerCount").addEventListener("change", controls);
 let seeding = false;
