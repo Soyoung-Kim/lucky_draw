@@ -15,6 +15,9 @@ begin
   assert r->>'error'='INVALID_SLOT_AMOUNT';
   r := public.nds_lucky_100_admin('close',e,'test');
   r := public.nds_lucky_100_admin('add_slots',e,'test','{"amount":146}');
+  assert r->>'error'='CLOSED', 'closed event expanded';
+  r := public.nds_lucky_100_admin('reopen',e,'test');
+  r := public.nds_lucky_100_admin('add_slots',e,'test','{"amount":146}');
   assert (r->'event'->>'max_slots')::integer=150;
   r := public.nds_lucky_100_admin('add_slots',e,'test','{"amount":1}');
   assert r->>'error'='INVALID_SLOT_AMOUNT';

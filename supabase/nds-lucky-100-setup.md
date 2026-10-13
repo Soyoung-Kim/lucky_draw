@@ -18,7 +18,7 @@ npx supabase functions deploy nds-lucky-100-admin
 
 ## 행사 준비
 
-행사 생성의 max_slots는 기본100, 최소2~최대150이다. 생성 후 add_slots 작업(amount 양의 정수)은 접수 중/마감 상태에서만 가능하며 기존 번호를 유지하고 빈 번호만 추가한다. 줄이거나 추첨 이후 추가할 수 없다. 기존 DB는 migrations/202610130003_variable_slots.sql을 실행하고 관리자 API와 공개 lookup/board/register API를 재배포한다. 최신 repair-nds-admin.sql에도 해당 변경이 포함된다.
+행사 생성의 max_slots는 기본100, 최소2~최대150이다. 생성 후 add_slots 작업(amount 양의 정수)은 접수 중에서만 가능하며 기존 번호를 유지하고 빈 번호만 추가한다. 줄이거나 추첨 이후 추가할 수 없다. 기존 DB는 migrations/202610130003_variable_slots.sql을 실행하고 관리자 API와 공개 lookup/board/register API를 재배포한다. 최신 repair-nds-admin.sql에도 해당 변경이 포함된다.
 
 관리자 화면은 `/nds_lucky_100_result/`이다. `/nds-lucky-100-admin/`으로 접속해도 같은 화면으로 이동한다.
 로그인 후 행사 이름을 입력해 생성하고 참가 링크를 복사한다. 행사 ID는 관리자 URL의 `?event=`에 보존되므로 이 URL을 저장하면 재접속 시 로그인 후 불러올 수 있다. 로그인 토큰은 현재 탭의 sessionStorage에 보관해 새로고침 시 복원한다. 서버 발급 세션 만료(8시간), 로그아웃 또는 탭 종료 시 재로그인이 필요하다. 비밀번호는 저장하지 않는다.

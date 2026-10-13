@@ -56,7 +56,7 @@ begin
         'winners',(select coalesce(jsonb_agg(jsonb_build_object('prize_rank',w.prize_rank,'participant_id',participant_row.id,'slot_number',participant_row.slot_number,'display_name',participant_row.display_name) order by w.prize_rank),'[]')
           from public.nds_lucky_100_winners w join public.nds_lucky_100_participants participant_row on participant_row.id=w.participant_id where w.event_id=e.id));
     elsif p_action='add_slots' then
-      if e.status not in ('registration','closed') then return jsonb_build_object('error','DRAW_ALREADY_STARTED'); end if;
+      if e.status <> 'registration' then return jsonb_build_object('error','CLOSED'); end if;
       v_count := (p_data->>'amount')::integer;
       if v_count is null or v_count < 1 or e.max_slots + v_count > 150 then return jsonb_build_object('error','INVALID_SLOT_AMOUNT'); end if;
       p_data := p_data || jsonb_build_object('previous_max_slots',e.max_slots);

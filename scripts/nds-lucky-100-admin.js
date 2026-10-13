@@ -77,7 +77,7 @@ function controls() {
   $("testCount").disabled = busy || status !== "registration";
   $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
   const full = (snapshot?.participants.length ?? 0) >= (snapshot?.event.max_slots ?? 100);
-  $("addSlotsButton").disabled = busy || !["registration", "closed"].includes(status) || snapshot?.event.max_slots >= 150;
+  $("addSlotsButton").disabled = busy || status !== "registration" || snapshot?.event.max_slots >= 150;
   $("addSlotsInput").disabled = $("addSlotsButton").disabled;
   $("addSlotsInput").max = Math.max(1, 150 - (snapshot?.event.max_slots ?? 100));
   $("seedButton").disabled ||= full;
@@ -297,6 +297,7 @@ $("close").addEventListener("click", () => {
 });
 $("addSlotsForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  if (snapshot?.event.status !== "registration") { message("접수 중에만 칸을 추가할 수 있습니다."); return; }
   const amount = Number($("addSlotsInput").value);
   if (!Number.isInteger(amount) || amount < 1 || !snapshot || snapshot.event.max_slots + amount > 150) { message("최대 150칸까지 추가할 수 있습니다."); return; }
   run(async () => { await api("add_slots", { amount }); await refresh(); message(`${amount}칸을 추가했습니다. 총 ${snapshot.event.max_slots}칸입니다.`); });
