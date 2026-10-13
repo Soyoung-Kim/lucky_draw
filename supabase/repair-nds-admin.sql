@@ -1,3 +1,8 @@
+begin;
+alter table public.nds_lucky_100_events drop constraint if exists nds_lucky_100_events_winner_limit_check;
+alter table public.nds_lucky_100_events add constraint nds_lucky_100_events_winner_limit_check check (winner_limit between 1 and 10);
+alter table public.nds_lucky_100_winners drop constraint if exists nds_lucky_100_winners_prize_rank_check;
+alter table public.nds_lucky_100_winners add constraint nds_lucky_100_winners_prize_rank_check check (prize_rank between 1 and 10);
 -- Latest admin RPC: preserves data and includes reopen, winner range and alias fix.
 create or replace function public.nds_lucky_100_admin(p_action text, p_event uuid, p_actor text, p_data jsonb default '{}')
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -71,3 +76,4 @@ begin
   select coalesce(jsonb_agg(to_jsonb(w) order by prize_rank),'[]') into v_results from public.nds_lucky_100_winners w where event_id=e.id;
   return jsonb_build_object('event',to_jsonb(e),'winners',v_results);
 end; $$;
+commit;

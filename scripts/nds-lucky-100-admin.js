@@ -5,6 +5,10 @@ let token = "", eventId = new URLSearchParams(location.search).get("event") ?? "
 const sessionKey = "nds_lucky_100_admin_session";
 let expiresAt = 0;
 let syncTask = null;
+let revealedCount = 0;
+function rememberReveal() {
+  try { sessionStorage.setItem(`nds_reveal_${eventId}`, String(revealedCount)); } catch { /* Presentation still works without storage. */ }
+}
 function clearSession() {
   expiresAt = 0;
   try { sessionStorage.removeItem(sessionKey); } catch { /* Storage can be blocked by browser settings. */ }
@@ -30,7 +34,7 @@ function restoreSession() {
   } catch { /* Invalid saved sessions require a fresh login. */ }
   clearSession();
 }
-function message(text = "") { $("message").textContent = text; }
+function message(text = "") { $("message").textContent = text; $("stageMessage").textContent = text; }
 function controls() {
   document.querySelectorAll("button,select").forEach((element) => { element.disabled = busy; });
   const status = snapshot?.event.status;
@@ -38,9 +42,17 @@ function controls() {
   $("close").textContent = status === "closed" ? "접수 재개" : "접수 마감";
   $("close").className = status === "closed" ? "secondary" : "danger";
   $("draw").disabled = busy || status !== "closed" || (snapshot?.participants.length ?? 0) < Number($("winnerCount").value);
+  $("stageDraw").disabled = $("draw").disabled;
+  $("stageDraw").hidden = status !== "closed";
+  const canReveal = status === "drawing" && revealedCount < (snapshot?.winners.length ?? 0);
+  $("nextWinner").disabled = busy || !canReveal;
+  $("popupNext").disabled = busy || !canReveal;
+  $("nextWinner").hidden = status !== "drawing";
+  $("popupNext").hidden = !canReveal;
+  $("revealProgress").textContent = snapshot?.winners.length ? `${revealedCount} / ${snapshot.winners.length}명 공개` : "당첨 인원은 운영 화면에서 선택합니다.";
   $("winnerCount").disabled = busy || status !== "closed";
-  $("finish").disabled = busy || status !== "drawing";
-  $("csv").disabled = busy || !snapshot?.winners.length;
+  $("finish").disabled = busy || status !== "drawing" || canReveal;
+  $("csv").disabled = busy || !snapshot?.winners.length || canReveal;
   $("seedButton").disabled = busy || status !== "registration";
   $("testCount").disabled = busy || status !== "registration";
   $("seedButton").textContent = busy && seeding ? "넣는 중…" : "넣기";
@@ -64,6 +76,7 @@ function logout() {
   $("dashboard").hidden = true; $("loginPanel").hidden = false; $("logout").hidden = true;
   $("eventPanel").hidden = true; $("exitPresentation").hidden = true;
   $("board").replaceChildren(); $("winners").replaceChildren(); $("announcement").textContent = "";
+  $("winnerPopup").hidden = true;
 }
 async function api(action, payload = {}) {
   if (action !== "login" && (!token || expiresAt <= Date.now())) {
@@ -81,6 +94,7 @@ async function api(action, payload = {}) {
   if (data.error === "NOT_ENOUGH_SLOTS") throw new Error(`빈 번호가 부족합니다. 현재 ${data.available_slots}명까지 추가할 수 있습니다.`);
   if (data.error === "INVALID_ACTION") throw new Error("서버 API 또는 DB 함수에 이 기능이 반영되지 않았습니다. 최신 접수 재개 SQL 적용과 관리자 API 배포를 확인해 주세요.");
   if (data.error === "DB_UPDATE_REQUIRED") throw new Error("DB의 접수 재개 함수가 구버전입니다. 최신 접수 재개 SQL을 적용해 주세요.");
+  if (data.details?.db_code === "23514") throw new Error("DB 제약조건이 당첨 인원 1~10명을 허용하지 않고 있습니다. 최신 repair-nds-admin.sql을 적용해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
@@ -117,23 +131,28 @@ function render() {
     const button = document.createElement("button"); button.type = "button"; button.className = `admin-slot${p ? " filled" : ""}`; button.dataset.slot = n;
     const number = document.createElement("strong"); number.textContent = n; const name = document.createElement("span"); name.textContent = p?.display_name ?? "—"; button.append(number, name);
     if (p) { button.dataset.participant = p.id; button.addEventListener("click", () => edit(p)); }
-    if (!animating && winners.some((w) => w.participant_id === p?.id)) button.classList.add("winner");
+    if (winners.some((w) => w.prize_rank <= revealedCount && w.participant_id === p?.id)) button.classList.add("winner");
     $("board").append(button);
   }
   renderWinners(); controls();
 }
 function renderWinners() {
   $("winners").replaceChildren();
-  if (animating) return;
   for (const winner of [...snapshot.winners].sort((a, b) => a.prize_rank - b.prize_rank)) {
+    if (winner.prize_rank > revealedCount) continue;
     const p = snapshot.participants.find((row) => row.id === winner.participant_id);
     const item = document.createElement("li"); const number = document.createElement("strong"); number.textContent = `${p?.slot_number ?? winner.slot_number}번`;
     const text = document.createElement("span"); text.textContent = `${winner.prize_rank}번째 당첨 · ${p?.display_name ?? winner.display_name}`; item.append(number, text); $("winners").append(item);
   }
-  $("announcement").textContent = snapshot.winners.length ? "✦ 당첨을 축하합니다!" : "";
+  $("announcement").textContent = revealedCount ? "✦ 당첨을 축하합니다!" : snapshot.winners.length ? "결과가 확정되었습니다. 한 명씩 공개해 주세요." : "";
 }
 async function refresh(id = eventId) {
   const data = validate(await api("board", { event_id: id }));
+  if (snapshot?.event.id !== data.event.id || !snapshot?.winners.length && data.winners.length) {
+    let saved = 0;
+    try { saved = Number(sessionStorage.getItem(`nds_reveal_${data.event.id}`)) || 0; } catch { /* Start from first winner. */ }
+    revealedCount = data.event.status === "completed" ? data.winners.length : Math.max(0, Math.min(saved, data.winners.length));
+  }
   const changed = JSON.stringify(snapshot) !== JSON.stringify(data);
   eventId = data.event.id; snapshot = data;
   if (changed) render();
@@ -208,29 +227,56 @@ $("deleteParticipant").addEventListener("click", () => {
 $("cancelEdit").addEventListener("click", () => $("editDialog").close());
 $("editDialog").addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
 $("finish").addEventListener("click", () => { if (confirm("행사를 종료하고 결과를 보존하시겠습니까?")) run(async () => { await api("finish"); await refresh(); }); });
+async function revealWinner() {
+  const winner = [...snapshot.winners].sort((a, b) => a.prize_rank - b.prize_rank)[revealedCount];
+  if (!winner) return;
+  const participant = snapshot.participants.find((p) => p.id === winner.participant_id);
+  if (!participant) throw new Error("당첨자 정보를 확인하지 못했습니다. 새로고침해 주세요.");
+  animating = true;
+  $("winnerPopup").hidden = false;
+  $("winnerPopup").classList.remove("celebrate");
+  $("popupTitle").textContent = `${revealedCount + 1}번째 행운의 주인공은?`;
+  $("popupName").textContent = "두근두근…";
+  $("popupProgress").textContent = `${revealedCount + 1} / ${snapshot.winners.length}명`;
+  const disclosed = new Set(snapshot.winners.filter((w) => w.prize_rank <= revealedCount).map((w) => w.participant_id));
+  const candidates = snapshot.participants.filter((p) => !disclosed.has(p.id));
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 5500;
+  const start = performance.now();
+  try {
+    await new Promise((resolve) => {
+      function frame(now) {
+        const elapsed = now - start;
+        $("board").querySelectorAll(".highlight").forEach((node) => node.classList.remove("highlight"));
+        if (elapsed >= duration) { resolve(); return; }
+        // Numbers are visual effects only; the actual winner is already saved on the server.
+        const index = Math.floor(35 * Math.log1p(elapsed / 400)) % candidates.length;
+        const candidate = candidates[index];
+        $("popupNumber").textContent = candidate.slot_number;
+        $("board").querySelector(`[data-slot="${candidate.slot_number}"]`)?.classList.add("highlight");
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+    $("popupNumber").textContent = participant.slot_number;
+    $("popupName").textContent = participant.display_name;
+    $("popupTitle").textContent = "✦ 당첨을 축하합니다!";
+    $("winnerPopup").classList.add("celebrate");
+    revealedCount++; rememberReveal();
+  } finally { animating = false; render(); }
+}
 $("draw").addEventListener("click", () => {
   const count = Number($("winnerCount").value);
   if (!confirm(`${count}명을 추첨하시겠습니까? 확정된 결과는 변경할 수 없습니다.`)) return;
   run(async () => {
-    animating = true;
-    try {
-      await api("draw", { winner_count: count }); await refresh();
-      // Only registered numbers animate. Winners were already committed by the server.
-      const candidates = [...$("board").querySelectorAll(".filled")];
-      const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 6000;
-      const start = performance.now();
-      await new Promise((resolve) => {
-        function frame(now) {
-          candidates.forEach((node) => node.classList.remove("highlight"));
-          if (now - start >= duration) { resolve(); return; }
-          candidates[Math.floor((now - start) / 90) % candidates.length]?.classList.add("highlight");
-          $("announcement").textContent = "행운의 주인공을 발표합니다…"; requestAnimationFrame(frame);
-        }
-        requestAnimationFrame(frame);
-      });
-    } finally { animating = false; if (snapshot) render(); }
+    await api("draw", { winner_count: count });
+    await refresh();
+    await revealWinner();
   });
 });
+$("stageDraw").addEventListener("click", () => $("draw").click());
+$("nextWinner").addEventListener("click", () => run(revealWinner));
+$("popupNext").addEventListener("click", () => run(revealWinner));
+$("popupClose").addEventListener("click", () => { $("winnerPopup").hidden = true; $("nextWinner").focus(); });
 $("copyLink").addEventListener("click", () => run(async () => {
   try { await navigator.clipboard.writeText($("entryLink").value); message("참가 링크를 복사했습니다."); }
   catch { $("entryLink").select(); message("참가 링크를 선택했습니다. 직접 복사해 주세요."); }
