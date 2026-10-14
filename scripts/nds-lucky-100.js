@@ -10,7 +10,6 @@ const slots = [];
 let maxSlots = 100;
 let selectionNotice = "";
 let syncing = false;
-let lastResultRefresh = 0;
 
 function message(value = "") { $("message").textContent = value; $("boardMessage").textContent = value; }
 function busy(value) {
@@ -46,7 +45,6 @@ function validateStatus(status) {
 function showResult(slot, status, isWinner = false) {
   if (!Number.isInteger(slot) || slot < 1 || slot > 150) throw new Error("등록 번호를 확인하지 못했습니다. 다시 조회해 주세요.");
   state.registered = true;
-  lastResultRefresh = Date.now();
   selectionNotice = ""; message();
   $("boardSection").hidden = true;
   $("closedSection").hidden = true;
@@ -97,7 +95,7 @@ async function lookup() {
   const data = await request("lookup", { name: state.name });
   state.status = validateStatus(data.event_status);
   if (typeof data.is_registered !== "boolean") throw new Error("참가 여부를 확인하지 못했습니다. 다시 시도해 주세요.");
-  if (data.is_registered) showResult(data.own_slot, state.status, data.is_winner === true);
+  if (data.is_registered) showResult(data.own_slot, state.status, state.status === "completed" && data.is_winner === true);
   else if (state.status !== "registration") $("closedSection").hidden = false;
   else { $("participantName").textContent = state.name; await refreshBoard(); }
 }
@@ -147,18 +145,10 @@ $("registerButton").addEventListener("click", async () => {
   } finally { busy(false); }
 });
 async function sync() {
-  if (document.hidden || state.busy || syncing || !state.name) return;
-  if (state.registered && Date.now() - lastResultRefresh < 30000) return;
+  if (document.hidden || state.busy || syncing || !state.name || state.registered) return;
   syncing = true;
   const previousName = state.name;
-  try {
-    if (state.registered) {
-      const data = await request("lookup", { name: previousName });
-      if (!state.busy && state.name === previousName && data.is_registered) {
-        showResult(data.own_slot, validateStatus(data.event_status), data.is_winner === true);
-      }
-    } else await refreshBoard(previousName);
-  }
+  try { await refreshBoard(previousName); }
   catch (error) {
     if (!state.busy && state.name === previousName && !state.registered) {
       state.fresh = false; message(error.message); renderBoard();
