@@ -10,6 +10,7 @@ const slots = [];
 let maxSlots = 100;
 let selectionNotice = "";
 let syncing = false;
+let lastResultRefresh = 0;
 
 function message(value = "") { $("message").textContent = value; $("boardMessage").textContent = value; }
 function busy(value) {
@@ -42,16 +43,19 @@ function validateStatus(status) {
   if (!["registration", "closed", "drawing", "completed"].includes(status)) throw new Error("행사 상태를 확인하지 못했습니다. 다시 시도해 주세요.");
   return status;
 }
-function showResult(slot, status) {
+function showResult(slot, status, isWinner = false) {
   if (!Number.isInteger(slot) || slot < 1 || slot > 150) throw new Error("등록 번호를 확인하지 못했습니다. 다시 조회해 주세요.");
   state.registered = true;
+  lastResultRefresh = Date.now();
   selectionNotice = ""; message();
   $("boardSection").hidden = true;
   $("closedSection").hidden = true;
   $("resultSection").hidden = false;
+  $("resultHeading").textContent = isWinner ? "당첨을 축하드립니다!" : "참가가 완료되었습니다!";
+  $("resultSection").classList.toggle("is-winner", isWinner);
   $("resultName").textContent = state.name;
   $("ownSlot").textContent = slot;
-  $("resultHelp").textContent = status === "registration" ? "번호를 기억하고, 추첨 시간을 기다려 주세요." : "접수가 마감되었습니다. 내 참가 번호는 그대로 유지됩니다.";
+  $("resultHelp").textContent = isWinner ? "행운의 주인공으로 선정되셨습니다. 진행자의 안내를 확인해 주세요." : status === "registration" ? "번호를 기억하고, 추첨 시간을 기다려 주세요." : "접수가 마감되었습니다. 내 참가 번호는 그대로 유지됩니다.";
 }
 function renderBoard() {
   for (const button of slots) {
@@ -93,7 +97,7 @@ async function lookup() {
   const data = await request("lookup", { name: state.name });
   state.status = validateStatus(data.event_status);
   if (typeof data.is_registered !== "boolean") throw new Error("참가 여부를 확인하지 못했습니다. 다시 시도해 주세요.");
-  if (data.is_registered) showResult(data.own_slot, state.status);
+  if (data.is_registered) showResult(data.own_slot, state.status, data.is_winner === true);
   else if (state.status !== "registration") $("closedSection").hidden = false;
   else { $("participantName").textContent = state.name; await refreshBoard(); }
 }
@@ -143,10 +147,18 @@ $("registerButton").addEventListener("click", async () => {
   } finally { busy(false); }
 });
 async function sync() {
-  if (document.hidden || state.busy || syncing || !state.name || state.registered) return;
+  if (document.hidden || state.busy || syncing || !state.name) return;
+  if (state.registered && Date.now() - lastResultRefresh < 30000) return;
   syncing = true;
   const previousName = state.name;
-  try { await refreshBoard(previousName); }
+  try {
+    if (state.registered) {
+      const data = await request("lookup", { name: previousName });
+      if (!state.busy && state.name === previousName && data.is_registered) {
+        showResult(data.own_slot, validateStatus(data.event_status), data.is_winner === true);
+      }
+    } else await refreshBoard(previousName);
+  }
   catch (error) {
     if (!state.busy && state.name === previousName && !state.registered) {
       state.fresh = false; message(error.message); renderBoard();

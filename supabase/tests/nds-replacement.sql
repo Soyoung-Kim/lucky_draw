@@ -10,10 +10,16 @@ begin
   r:=public.nds_lucky_100_admin('close',e,'test');
   r:=public.nds_lucky_100_admin('draw',e,'test',jsonb_build_object('winner_count',1,'candidate_ids',jsonb_build_array(a,b),'participant_ids',jsonb_build_array(a)));
   w:=(r->'winners'->0->>'id')::uuid;
+  r:=public.nds_lucky_100_public('lookup',e,'김민준');
+  assert (r->>'is_winner')::boolean, 'active winner not recognized';
   r:=public.nds_lucky_100_admin('replace',e,'test',jsonb_build_object('winner_id',w,'candidate_ids',jsonb_build_array(b),'participant_id',b));
   assert (r->'replacement'->>'participant_id')::uuid=b;
   replacement:=(r->'replacement'->>'id')::uuid;
   assert (select status='absent' from public.nds_lucky_100_winners where id=w);
+  r:=public.nds_lucky_100_public('lookup',e,'김민준');
+  assert not (r->>'is_winner')::boolean, 'absent winner still congratulated';
+  r:=public.nds_lucky_100_public('lookup',e,'이서연');
+  assert (r->>'is_winner')::boolean, 'replacement not congratulated';
   assert (select count(*)=2 from public.nds_lucky_100_winners where event_id=e);
   r:=public.nds_lucky_100_admin('replace',e,'test',jsonb_build_object('winner_id',w));
   assert (r->'replacement'->>'id')::uuid=replacement, 'repeat click creates another winner';

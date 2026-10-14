@@ -8,3 +8,4 @@
 .legend i{width:12px;height:12px;background:#d0f5df;border:2px solid #29945e}
 .legend .occupied{background:#edeef2;border:1px solid #d9dce4}
 .legend .selected{background:#6840dd;border:2px solid #4724ae}
+.result.is-winner{border-color:#e6c46b;background:linear-gradient(145deg,#fffdf4,#fff8dc)}.result.is-winner .result-icon,.result.is-winner .own-slot{color:#9b6b0a}.result.is-winner h2{color:#795306}

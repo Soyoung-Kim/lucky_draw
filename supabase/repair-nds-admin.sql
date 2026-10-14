@@ -27,7 +27,7 @@ begin
   if v_name is null or char_length(v_name) not between 1 and 30 then return jsonb_build_object('error','INVALID_NAME'); end if;
   select * into p from public.nds_lucky_100_participants where event_id=p_event and normalized_name=v_normal;
   if p_action = 'lookup' then
-    return jsonb_build_object('is_registered',p.id is not null,'own_slot',p.slot_number,'event_status',e.status);
+    return jsonb_build_object('is_registered',p.id is not null,'own_slot',p.slot_number,'event_status',e.status,'is_winner',exists(select 1 from public.nds_lucky_100_winners w where w.event_id=e.id and w.participant_id=p.id and w.status='active'));
   end if;
   if e.status <> 'registration' then return jsonb_build_object('error','CLOSED'); end if;
   if p.id is not null then return jsonb_build_object('error','ALREADY_NAME'); end if;
