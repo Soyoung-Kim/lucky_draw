@@ -32,7 +32,10 @@ export async function rateLimit(req: Request, category: string, limit: number) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? req.headers.get("x-real-ip") ?? "unknown";
   const key = await sha256Hex(`nds-lucky-100:${category}:${ip}`);
   const { data, error } = await getServiceClient().rpc("nds_lucky_100_rate_limit", { p_key: key, p_limit: limit });
-  if (error) throw new HttpError("Rate limiter unavailable", 503);
+  if (error) {
+    console.error("NDS rate limiter RPC failed", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+    throw new HttpError("Rate limiter unavailable", 503, { db_code: error.code });
+  }
   if (!data) throw new HttpError("TOO_MANY_REQUESTS", 429);
 }
 export function servePublic(action: "lookup" | "board" | "register") {
