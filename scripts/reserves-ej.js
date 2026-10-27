@@ -1,19 +1,22 @@
 import { invokeFunction } from './api.js';
-import { FIRST_DAY, LAST_DAY, koreaDay, canRequest, validateRequest, monthCells, escapeHTML as esc, dateLabel } from './reserves-ej-core.mjs';
+import { FIRST_DAY, koreaDay, canRequest, validateRequest, monthCells, registeredMonths, nearestMonth, escapeHTML as esc, dateLabel } from './reserves-ej-core.mjs';
 const $ = id => document.getElementById(id);
 const form = $('requestForm');
-let days = new Map(), bookings = [], offset = 0, loaded = false, refreshing = false;
+let days = new Map(), bookings = [], months = [], offset = 0, loaded = false, refreshing = false;
 const now = () => new Date(Date.now() + offset);
 const currentMonth = () => koreaDay(now()).slice(0, 7);
-const clampMonth = month => month < '2026-10' ? '2026-10' : month > '2027-05' ? '2027-05' : month;
-let month = clampMonth(currentMonth());
+let month = currentMonth();
 let lastToday = koreaDay(now());
 function message(text, success = false) { $('message').textContent = text; $('message').classList.toggle('success', success); }
 function render() {
   const today = koreaDay(now());
   const [year, number] = month.split('-');
   $('monthTitle').textContent = `${year}년 ${Number(number)}월`;
-  $('prevMonth').disabled = month <= '2026-10'; $('nextMonth').disabled = month >= '2027-05';
+  $('prevMonth').disabled = !loaded || months.indexOf(month) <= 0;
+  $('nextMonth').disabled = !loaded || months.indexOf(month) >= months.length - 1;
+  $('monthSelect').innerHTML = months.map(m => `<option value="${m}">${m.slice(0,4)}년 ${Number(m.slice(5))}월</option>`).join('');
+  $('monthSelect').value = month; $('monthSelect').disabled = !loaded;
+  $('openRange').textContent = loaded && days.size ? `등록된 ${months.length}개 월 · ${[...days.keys()].sort().at(-1).replaceAll('-', '.')}까지` : '예약 가능한 달을 확인해 주세요';
   $('calendar').innerHTML = monthCells(month).map((day, i) => {
     if (!day) return '<div class="day empty" aria-hidden="true"></div>';
     const info = days.get(day), past = day < today || day < FIRST_DAY, available = loaded && info && canRequest(day, today, info.is_open);
@@ -28,6 +31,7 @@ async function refresh(silent = false) {
     const result = await invokeFunction('reserves-ej', { action: 'calendar' });
     offset = new Date(`${result.now}+09:00`).getTime() - Date.now();
     days = new Map(result.days.map(d => [d.day, d])); bookings = result.bookings; loaded = true;
+    months = registeredMonths([...days.keys()]); month = nearestMonth(month, months);
     if (!silent || $('message').dataset.failed) message('');
     delete $('message').dataset.failed;
     render();
@@ -38,16 +42,16 @@ async function refresh(silent = false) {
   } finally { refreshing = false; }
 }
 for (const [id, direction] of [['prevMonth', -1], ['nextMonth', 1]]) $(id).onclick = () => {
-  const d = new Date(`${month}-01T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() + direction);
-  month = clampMonth(d.toISOString().slice(0, 7)); render();
+  month = months[months.indexOf(month) + direction] || month; render();
 };
-$('todayButton').onclick = () => { month = clampMonth(currentMonth()); render(); };
+$('todayButton').onclick = () => { month = nearestMonth(currentMonth(), months); render(); };
+$('monthSelect').onchange = event => { month = event.target.value; render(); };
 $('refresh').onclick = () => refresh();
 $('calendar').onclick = event => {
   const button = event.target.closest('[data-day]');
   if (!button) return;
   const day = button.dataset.day;
-  if (!loaded || !canRequest(day, koreaDay(now()), days.get(day)?.is_open)) return;
+  if (!loaded || !days.has(day) || !canRequest(day, koreaDay(now()), days.get(day).is_open)) return;
   form.reset(); form.elements.day.value = day;
   $('dialogTitle').textContent = dateLabel(day);
   $('formMessage').textContent = '';
@@ -59,6 +63,7 @@ $('closeDialog').onclick = () => $('requestDialog').close();
 form.onsubmit = async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
+  if (!loaded || !days.has(data.day) || !days.get(data.day).is_open) { $('formMessage').textContent = '현재 예약 가능한 날짜인지 다시 확인해 주세요.'; return; }
   const invalid = validateRequest(data, bookings, now());
   if (invalid) { $('formMessage').textContent = invalid; return; }
   $('submitRequest').disabled = true; $('closeDialog').disabled = true;

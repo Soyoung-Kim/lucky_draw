@@ -11,6 +11,16 @@
 3. 연결된 프로젝트에서 `npx supabase functions deploy reserves-ej`를 실행합니다. 기존 프론트엔드와 동일한 anon JWT를 전달합니다.
 4. 정적 파일을 기존 GitHub Pages 배포에 포함합니다. 저장소 하위 경로에서도 상대 링크가 작동합니다.
 
+## 예약 월 추가
+
+기존 설치에는 `supabase/migrations/202610270001_ej_extend_calendar.sql`을 한 번 적용하고 `reserves-ej` Edge Function을 재배포합니다. 최초 설치에도 기본 SQL 다음에 이 파일을 적용합니다.
+
+관리자 화면의 **예약 달력 추가 → 연도·월 입력 → 공휴일 미리보기 → 이 달 추가하고 예약 열기**를 사용합니다. 현재 달 또는 미래 달을 한 달씩 추가하며, 중간 달을 건너뛰어도 됩니다. 공개 달력은 DB에 등록된 달을 기준으로 이동하므로 2027년 5월 이후도 예약할 수 있습니다. 같은 달을 다시 추가하면 누락된 날짜만 생성하며 기존 예약·공휴일 수정·휴무·메모는 덮어쓰지 않습니다.
+
+공휴일은 Edge Function에서 한국천문연구원의 해당 연도 달력자료 중 국경일과 공휴일 표를 읽어 가져옵니다. 추가 API 키는 필요 없습니다. 이 자료는 공식 발표 전 참고자료일 수 있으며 임시공휴일 등은 추후 변경될 수 있습니다. 자료가 아직 없는 연도, 연결 실패, 표 형식 변경 시 생성하지 않고 오류를 표시합니다. 단순히 공휴일이 없는 달은 정상 생성합니다. 자료의 변경은 기존 월에 자동 덮어쓰지 않으므로 날짜 관리에서 수정합니다.
+
+`ej_requests.day`는 `ej_calendar.day`를 참조합니다. 신청·승인 시 해당 날짜의 등록 여부와 예약 열림 상태를 확인하므로 두 테이블은 연결되어 있습니다. 확정 일정의 시간은 `ej_requests`에 저장되고 공개 달력 응답에서 함께 조회됩니다.
+
 ## 동작
 
 한국 시간의 오늘부터 신청할 수 있고 당일에도 이미 지난 시간은 선택할 수 없습니다. 1·2순위는 **선택한 날짜 안의 서로 다른 시작·종료 시간대**이며 둘 다 필수입니다. 자정을 넘는 약속은 지원하지 않습니다. 요청자 이름과 사유는 필수이고 관리자에게만 공개됩니다. 승인 전 요청끼리는 시간이 겹칠 수 있습니다.
@@ -23,7 +33,7 @@
 
 ## 검증
 
-`node --test scripts/tests/reserves-ej.test.mjs`
+`node --test scripts/tests/reserves-ej.test.mjs scripts/tests/reserves-ej-auth.test.mjs scripts/tests/reserves-ej-calendar.test.mjs`
 
 DB 통합 테스트: `EJ_PGLITE_MODULE` 환경변수에 설치된 `@electric-sql/pglite`의 모듈 경로를 지정한 뒤 `node --test scripts/tests/reserves-ej-db.test.mjs`. 테스트는 메모리 DB만 사용합니다.
 

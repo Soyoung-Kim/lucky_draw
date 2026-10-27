@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { koreaDay, canRequest, overlaps, validateRequest, monthCells, escapeHTML } from '../reserves-ej-core.mjs';
+import { koreaDay, canRequest, overlaps, validateRequest, monthCells, registeredMonths, nearestMonth, escapeHTML } from '../reserves-ej-core.mjs';
 const now = new Date('2026-10-26T10:00:00+09:00');
 const data = {day:'2026-10-26',start1:'12:00',end1:'13:00',start2:'18:00',end2:'20:00',requester:'친구',reason:'밥 먹자'};
 test('KST midnight closes yesterday, independent of browser timezone', () => {
@@ -8,15 +8,22 @@ test('KST midnight closes yesterday, independent of browser timezone', () => {
  assert.equal(koreaDay(new Date('2026-10-26T15:00:00Z')), '2026-10-27');
  assert.equal(canRequest('2026-10-26','2026-10-27'), false);
  assert.equal(canRequest('2027-05-31','2026-10-26'), true);
- assert.equal(canRequest('2027-06-01','2026-10-26'), false);
+ assert.equal(canRequest('2027-06-01','2026-10-26'), true);
  assert.equal(canRequest('2026-10-25','2026-10-25'), false);
  assert.equal(canRequest('2026-10-27','2026-10-26',false), false);
 });
 test('both distinct preferences, nonempty name/reason, and future valid ranges are required', () => {
  assert.equal(validateRequest(data,[],now),'');
- for (const change of [{requester:' '},{reason:' '},{start1:'09:00'},{end1:'11:00'},{start2:'12:00',end2:'13:00'},{end1:'24:00'},{day:'2027-06-01'}]) {
+ for (const change of [{requester:' '},{reason:' '},{start1:'09:00'},{end1:'11:00'},{start2:'12:00',end2:'13:00'},{end1:'24:00'},{day:'2100-01-01'}]) {
    assert.ok(validateRequest({...data,...change},[],now), JSON.stringify(change));
  }
+});
+test('navigation uses registered months, including gaps and years beyond the original end', () => {
+ const months = registeredMonths(['2028-02-29','2027-05-31','2027-05-01','2027-09-01']);
+ assert.deepEqual(months,['2027-05','2027-09','2028-02']);
+ assert.equal(nearestMonth('2027-06',months),'2027-09');
+ assert.equal(nearestMonth('2029-01',months),'2028-02');
+ assert.equal(monthCells('2028-02').filter(Boolean).length,29);
 });
 test('overlaps include enclosing ranges but allow adjacent meetings', () => {
  assert.equal(overlaps('12:00','13:00','13:00','14:00'),false);

@@ -1,10 +1,15 @@
 export const FIRST_DAY = '2026-10-26';
-export const LAST_DAY = '2027-05-31';
 export function koreaDay(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }
 export function canRequest(day, today, open = true) {
-  return open && day >= FIRST_DAY && day <= LAST_DAY && day >= today;
+  return open && day >= FIRST_DAY && day <= '2099-12-31' && day >= today;
+}
+export function registeredMonths(days) {
+  return [...new Set(days.map(day => day.slice(0, 7)))].sort();
+}
+export function nearestMonth(month, months) {
+  return months.includes(month) ? month : months.find(value => value >= month) || months.at(-1) || month;
 }
 export function overlaps(start, end, otherStart, otherEnd) {
   return start < otherEnd && end > otherStart;

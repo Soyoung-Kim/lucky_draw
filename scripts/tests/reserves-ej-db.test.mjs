@@ -58,5 +58,27 @@ test('reservation SQL: calendar, privacy, approval conflicts, closures, cancella
     assert.equal((await call('calendar')).days.length,218);
     const limit = async () => (await db.query("select public.ej_rate_limit('test',2) as ok")).rows[0].ok;
     assert.equal(await limit(),true); assert.equal(await limit(),true); assert.equal(await limit(),false);
+    await db.exec('reset role');
+    const extension = (await readFile(new URL('../../supabase/migrations/202610270001_ej_extend_calendar.sql',import.meta.url),'utf8')).replaceAll('clock_timestamp()', "timestamptz '2026-10-26 10:00:00+09'");
+    await db.exec(extension);
+    const addMonth = async (year,month,holidays=[]) => (await db.query('select public.ej_add_month($1,$2,$3::jsonb) as result',[year,month,JSON.stringify(holidays)])).rows[0].result;
+    assert.equal((await addMonth(2027,6,[{day:'2027-06-06',holiday:'현충일'}])).inserted,30);
+    const future = await call('request',{...base,day:'2027-06-15'});
+    await call('approve',{id:future.id,choice:1});
+    await call('day',{day:'2027-06-06',is_open:false,note:'휴식',holiday:'직접 수정'});
+    assert.equal((await addMonth(2027,6,[{day:'2027-06-06',holiday:'현충일'}])).inserted,0);
+    const savedDay = (await call('calendar')).days.find(d=>d.day==='2027-06-06');
+    assert.equal(savedDay.is_open,false); assert.equal(savedDay.note,'휴식'); assert.equal(savedDay.holiday,'직접 수정');
+    assert.ok((await call('calendar')).bookings.some(b=>b.day==='2027-06-15'));
+    assert.equal((await addMonth(2028,2)).inserted,29);
+    await assert.rejects(call('request',{...base,day:'2028-01-15'}),/예약 가능 기간/);
+    await assert.rejects(addMonth(2026,9),/지난 달/);
+    await assert.rejects(addMonth(2027,13),/연도와 월/);
+    await assert.rejects(addMonth(2027,7,[{day:'2027-08-15',holiday:'광복절'}]),/공휴일/);
+    await db.exec('set role anon');
+    await assert.rejects(addMonth(2027,7),/permission denied/);
+    await db.exec('reset role');
+    await db.exec('set role service_role');
+    assert.equal((await addMonth(2027,7)).inserted,31);
   } finally { await db.close(); }
 });

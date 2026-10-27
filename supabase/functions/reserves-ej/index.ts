@@ -2,6 +2,7 @@ import { getEjAdminConfig, createEjSession, verifyEjCredentials, verifyEjSession
 import { HttpError, jsonResponse, readJson, withJsonHandler } from '../_shared/http.ts';
 import { getServiceClient } from '../_shared/supabase.ts';
 import { sha256Hex } from '../_shared/crypto.ts';
+import { validateMonth, loadKoreanMonth } from '../_shared/ej-calendar.ts';
 
 async function rateLimit(req: Request, category: string, limit: number) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? req.headers.get('x-real-ip') ?? 'unknown';
@@ -15,7 +16,7 @@ Deno.serve(req => withJsonHandler(req, async () => {
   const payload = await readJson(req);
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new HttpError('잘못된 요청입니다.');
   const action = payload.action;
-  if (!['calendar','request','login','list','approve','reject','cancel','day'].includes(String(action)))
+  if (!['calendar','request','login','list','approve','reject','cancel','day','preview_month','add_month'].includes(String(action)))
     throw new HttpError('지원하지 않는 요청입니다.');
   if (!['calendar','request'].includes(String(action))) {
     getEjAdminConfig();
@@ -26,6 +27,15 @@ Deno.serve(req => withJsonHandler(req, async () => {
       return jsonResponse({success:true,admin_session_token:session.token,expires_at:session.expires_at});
     }
     await verifyEjSession(payload.admin_session_token);
+  }
+  if (action === 'preview_month' || action === 'add_month') {
+    const {year, month} = validateMonth(payload.year, payload.month);
+    await rateLimit(req, 'ej-calendar-import', 20);
+    const calendar = await loadKoreanMonth(year, month);
+    if (action === 'preview_month') return jsonResponse({success:true,...calendar});
+    const {data: added,error} = await getServiceClient().rpc('ej_add_month', {p_year:year,p_month:month,p_holidays:calendar.holidays});
+    if (error) throw new HttpError(error.code === 'P0001' ? error.message : '달력 확장 SQL 적용 여부를 확인해 주세요.',400);
+    return jsonResponse({...added,...calendar});
   }
   const data: Record<string,unknown> = {};
   const str = (key: string, max: number, required = true) => {

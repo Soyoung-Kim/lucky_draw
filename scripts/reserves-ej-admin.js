@@ -1,5 +1,5 @@
 import { invokeFunction } from './api.js';
-import { escapeHTML as esc, dateLabel, koreaDay, FIRST_DAY, LAST_DAY } from './reserves-ej-core.mjs';
+import { escapeHTML as esc, dateLabel, koreaDay } from './reserves-ej-core.mjs';
 const $ = id => document.getElementById(id);
 let token = sessionStorage.getItem('ej_admin_session') || '', requests = [], days = new Map(), filter = 'pending', busy = false;
 const statusNames = { pending: '승인 대기', approved: '확정', rejected: '거절', cancelled: '취소' };
@@ -22,11 +22,23 @@ function fillDay() {
   const form = $('dayForm'), info = days.get(form.elements.day.value);
   form.elements.is_open.value = String(info?.is_open ?? true);
   form.elements.holiday.value = info?.holiday || ''; form.elements.note.value = info?.note || '';
+  $('saveDay').disabled = !info;
+  $('dayHelp').textContent = info ? '' : '아직 등록되지 않은 날짜입니다. 먼저 해당 월을 추가해 주세요.';
 }
 async function refresh() {
   const [list, calendar] = await Promise.all([call('list'), call('calendar')]);
   if (!token) return;
   requests = list.requests; days = new Map(calendar.days.map(d => [d.day, d])); render();
+  const sorted = [...days.keys()].sort();
+  dayForm.elements.day.min = sorted[0] || '';
+  dayForm.elements.day.max = sorted.at(-1) || '';
+  if (!days.has(dayForm.elements.day.value)) dayForm.elements.day.value = sorted.find(d => d >= koreaDay()) || sorted.at(-1) || '';
+  $('calendarRange').textContent = sorted.length ? `${sorted[0]} ~ ${sorted.at(-1)} · ${sorted.length}일 등록` : '등록된 날짜가 없습니다.';
+  if (!monthForm.elements.year.value) {
+    const next = sorted.length ? new Date(`${sorted.at(-1).slice(0,7)}-01T12:00:00Z`) : new Date();
+    if (sorted.length) next.setUTCMonth(next.getUTCMonth()+1);
+    monthForm.elements.year.value = next.getUTCFullYear(); monthForm.elements.month.value = next.getUTCMonth()+1;
+  }
 }
 $('loginForm').onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
@@ -54,7 +66,7 @@ $('requests').onclick = async event => {
   finally { busy = false; render(); }
 };
 const dayForm = $('dayForm');
-const today = koreaDay(); dayForm.elements.day.value = today < FIRST_DAY ? FIRST_DAY : today > LAST_DAY ? LAST_DAY : today;
+dayForm.elements.day.value = koreaDay();
 dayForm.elements.day.onchange = fillDay;
 dayForm.onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
@@ -62,6 +74,32 @@ dayForm.onsubmit = async event => {
   try { await call('day', data); await refresh(); message('날짜 설정을 저장했어요.', true); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
+};
+const monthForm = $('monthForm');
+let previewedMonth = '', importing = false;
+const monthValue = () => `${monthForm.elements.year.value}-${monthForm.elements.month.value}`;
+monthForm.oninput = () => { previewedMonth = ''; $('addMonth').disabled = true; $('monthPreview').replaceChildren(); };
+monthForm.onsubmit = async event => {
+  event.preventDefault(); if (importing) return;
+  importing = true; const requestedMonth = monthValue(); previewedMonth = ''; $('addMonth').disabled = true;
+  $('previewMonth').disabled = true; $('monthMessage').textContent = '공휴일 자료를 불러오는 중이에요…';
+  try {
+    const data = await call('preview_month',{year:Number(monthForm.elements.year.value),month:Number(monthForm.elements.month.value)});
+    if (requestedMonth !== monthValue()) return;
+    $('monthPreview').innerHTML = `<p>${data.holidays.length ? data.holidays.map(h => `${esc(h.day)} · ${esc(h.holiday)}`).join('<br>') : '이 달에는 등록된 공휴일이 없어요.'}</p><p class="small muted">${esc(data.notice)}</p><a class="small" href="${esc(data.source)}" target="_blank" rel="noopener noreferrer">한국천문연구원 자료 확인 ↗</a>`;
+    previewedMonth = requestedMonth; $('addMonth').disabled = false; $('monthMessage').textContent = '확인 후 추가하면 이 달의 예약이 열립니다. 기존 날짜의 설정은 유지돼요.';
+  } catch(error) { $('monthMessage').textContent = error.message; }
+  finally { importing = false; $('previewMonth').disabled = false; }
+};
+$('addMonth').onclick = async () => {
+  if (importing || previewedMonth !== monthValue()) return;
+  importing = true; $('addMonth').disabled = true; $('previewMonth').disabled = true;
+  try {
+    const data = await call('add_month',{year:Number(monthForm.elements.year.value),month:Number(monthForm.elements.month.value)});
+    $('monthMessage').textContent = `${data.inserted}일을 추가했어요. 기존 ${data.existing}일은 그대로 유지했습니다.`;
+    previewedMonth = ''; await refresh(); fillDay();
+  } catch(error) { $('monthMessage').textContent = error.message; $('addMonth').disabled = previewedMonth !== monthValue(); }
+  finally { importing = false; $('previewMonth').disabled = false; }
 };
 showSession();
 if (token) refresh().then(fillDay).catch(e => message(e.message));

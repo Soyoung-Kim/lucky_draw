@@ -3,12 +3,14 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL, fileURLToPath} from 'node:url';
+import {loadKoreanMonth} from '../../supabase/functions/_shared/ej-calendar.ts';
 if (!process.env.EJ_PGLITE_MODULE) throw new Error('Set EJ_PGLITE_MODULE first.');
 const {PGlite} = await import(pathToFileURL(process.env.EJ_PGLITE_MODULE).href);
 const db = new PGlite();
 const root = fileURLToPath(new URL('../../',import.meta.url));
 await db.exec('create role anon; create role authenticated; create role service_role;');
 await db.exec((await readFile(path.join(root,'supabase/migrations/202610260001_reserves_ej.sql'),'utf8')).replaceAll('clock_timestamp()',"timestamptz '2026-10-26 10:00:00+09'"));
+await db.exec((await readFile(path.join(root,'supabase/migrations/202610270001_ej_extend_calendar.sql'),'utf8')).replaceAll('clock_timestamp()',"timestamptz '2026-10-26 10:00:00+09'"));
 http.createServer(async (req,res) => {
  try {
   const url = new URL(req.url,'http://localhost');
@@ -21,6 +23,12 @@ http.createServer(async (req,res) => {
     return res.end(JSON.stringify({admin_session_token:'local-test-only'}));
    }
    if (!['calendar','request'].includes(payload.action) && payload.admin_session_token !== 'local-test-only') throw new Error('Admin login is required');
+   if (['preview_month','add_month'].includes(payload.action)) {
+    const calendar = await loadKoreanMonth(payload.year,payload.month);
+    if (payload.action==='preview_month') return res.end(JSON.stringify(calendar));
+    const added = await db.query('select public.ej_add_month($1,$2,$3::jsonb) as result',[payload.year,payload.month,JSON.stringify(calendar.holidays)]);
+    return res.end(JSON.stringify({...added.rows[0].result,...calendar}));
+   }
    const result = await db.query('select public.ej_action($1,$2::jsonb) as result',[payload.action,JSON.stringify(payload)]);
    return res.end(JSON.stringify(result.rows[0].result));
   }
