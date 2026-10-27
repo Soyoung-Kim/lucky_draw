@@ -1,4 +1,4 @@
-import { createAdminSessionToken, verifyAdminCredentials, verifyAdminAccess } from '../_shared/admin.ts';
+import { getEjAdminConfig, createEjSession, verifyEjCredentials, verifyEjSession } from '../_shared/ej-admin.ts';
 import { HttpError, jsonResponse, readJson, withJsonHandler } from '../_shared/http.ts';
 import { getServiceClient } from '../_shared/supabase.ts';
 import { sha256Hex } from '../_shared/crypto.ts';
@@ -18,17 +18,14 @@ Deno.serve(req => withJsonHandler(req, async () => {
   if (!['calendar','request','login','list','approve','reject','cancel','day'].includes(String(action)))
     throw new HttpError('지원하지 않는 요청입니다.');
   if (!['calendar','request'].includes(String(action))) {
-    for (const key of ['ADMIN_ID','ADMIN_PASSWORD','ADMIN_SESSION_SECRET']) {
-      if (!Deno.env.get(key)?.trim()) throw new HttpError('관리자 설정이 필요합니다.',503);
-    }
+    getEjAdminConfig();
     if (action === 'login') {
       await rateLimit(req,'ej-login',10);
-      const id = verifyAdminCredentials(payload.admin_id,payload.password);
-      const session = await createAdminSessionToken(id);
+      const id = await verifyEjCredentials(payload.admin_id,payload.password);
+      const session = await createEjSession(id);
       return jsonResponse({success:true,admin_session_token:session.token,expires_at:session.expires_at});
     }
-    const admin = await verifyAdminAccess({admin_session_token:payload.admin_session_token});
-    if (admin.admin_id !== Deno.env.get('ADMIN_ID')) throw new HttpError('다시 로그인해 주세요.',401);
+    await verifyEjSession(payload.admin_session_token);
   }
   const data: Record<string,unknown> = {};
   const str = (key: string, max: number, required = true) => {

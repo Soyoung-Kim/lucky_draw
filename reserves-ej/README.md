@@ -7,7 +7,7 @@
 ## 서버 적용
 
 1. Supabase SQL Editor에서 `supabase/migrations/202610260001_reserves_ej.sql`을 실행합니다. 2026-10-26부터 2027-05-31까지 218일을 생성합니다. 기존 추첨 테이블은 변경하지 않습니다.
-2. 기존 프로젝트의 `ADMIN_ID`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` 환경변수를 사용합니다. 세 값이 없으면 관리자 기능은 닫힙니다. 관리자 화면은 기존 운영 계정으로 로그인합니다.
+2. 은지 전용 계정은 Supabase Edge Functions Secrets의 `EJ_ADMIN`(아이디), `EJ_ADMIN_PASS`(비밀번호)를 사용합니다. 기존 `ADMIN_ID`와 `ADMIN_PASSWORD`는 기존 관리자용으로 유지합니다. 서명에는 기존 `ADMIN_SESSION_SECRET`을 사용하되 은지 전용 서명 컨텍스트와 역할로 분리하여 서로의 세션은 사용할 수 없습니다. 필수 설정이 없으면 은지 관리자 기능만 닫힙니다. 계정 변경 또는 이번 인증 분리 적용 후에는 다시 로그인해야 합니다.
 3. 연결된 프로젝트에서 `npx supabase functions deploy reserves-ej`를 실행합니다. 기존 프론트엔드와 동일한 anon JWT를 전달합니다.
 4. 정적 파일을 기존 GitHub Pages 배포에 포함합니다. 저장소 하위 경로에서도 상대 링크가 작동합니다.
 
