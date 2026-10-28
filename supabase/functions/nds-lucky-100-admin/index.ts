@@ -109,8 +109,8 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     return jsonResponse({ success: true, requested_count: count, inserted_count: inserted, stopped_reason: stoppedReason });
   }
   if (action === "draw") {
-    const winnerCount = payload.winner_count ?? 10;
-    if (typeof winnerCount !== "number" || !Number.isInteger(winnerCount) || winnerCount < 1 || winnerCount > 15) throw new HttpError("INVALID_WINNER_COUNT", 400);
+    const winnerCount = payload.winner_count ?? 11;
+    if (winnerCount !== 11) throw new HttpError("INVALID_WINNER_COUNT", 400);
     // closed events cannot be edited. Concurrent draws are resolved under the DB event lock.
     const { data: snapshot, error } = await client.rpc("nds_lucky_100_admin", { p_action: "board", p_event: eventId, p_actor: admin.admin_id, p_data: {} });
     if (error) {
