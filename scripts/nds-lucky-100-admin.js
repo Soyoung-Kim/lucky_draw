@@ -412,7 +412,7 @@ async function revealWinner(targetId = null) {
   $("popupProgress").textContent = `${revealedCount + 1} / ${snapshot.winners.length}명`;
   const disclosed = new Set(snapshot.winners.filter(wasRevealed).map((w) => w.participant_id));
   const candidates = snapshot.participants.filter((p) => !disclosed.has(p.id));
-  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 3000;
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1500;
   const start = performance.now();
   try {
     await new Promise((resolve) => {
