@@ -159,7 +159,7 @@ function renderRoom() {
   if (!room) {
     els.adminParticipantCount.textContent = "0";
     els.adminRoomStatus.textContent = "대기";
-    els.shareEntryLink.href = "./index.html";
+    els.shareEntryLink.href = "./lucky-draw.html";
     els.shareEntryLink.textContent = "참여 링크";
     els.closeRoomButton.disabled = true;
     els.createDrawButton.disabled = true;
@@ -175,7 +175,7 @@ function renderRoom() {
     els.adminParticipantCount.textContent = String(state.manualParticipantCount);
   }
 
-  const entryUrl = new URL("./index.html", window.location.href);
+  const entryUrl = new URL("./lucky-draw.html", window.location.href);
   entryUrl.searchParams.set("room", room.code);
   els.shareEntryLink.href = entryUrl.href;
   els.shareEntryLink.textContent = `${room.code} 참여 링크`;

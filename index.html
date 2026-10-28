@@ -1,78 +1,8 @@
 <!doctype html>
-<html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lucky Draw Event</title>
-    <link rel="stylesheet" href="./styles/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="./scripts/entry.js"></script>
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="./index.html" aria-label="이벤트 홈">
-        <span class="brand-mark">NDS</span>
-        <span>Lucky Draw</span>
-      </a>
-      <div class="topbar-actions">
-        <span id="roomStatusBadge" class="status-pill">대기</span>
-        <!-- <a class="ghost-link" href="./admin.html">관리자 로그인</a> -->
-      </div>
-    </header>
-
-    <main id="appShell" class="app-shell app-shell-single">
-      <section class="entry-hero">
-        <div class="event-card">
-          <div id="roomLoaderSection" class="room-loader">
-            <label for="roomCodeInput">이벤트 코드</label>
-            <div class="inline-form">
-              <input id="roomCodeInput" name="room_code" autocomplete="off" placeholder="INSERT CODE" />
-              <button id="loadRoomButton" class="btn secondary" type="button">입장</button>
-            </div>
-          </div>
-          <div id="roomLoadedSection" class="room-loaded-bar is-hidden">
-            <button id="backButton" class="btn ghost" type="button">&#8592; HOME</button>
-          </div>
-
-          <div id="eventInfoSection" class="is-hidden">
-            <div class="event-summary">
-              <p class="eyebrow">Company Event</p>
-              <h1 id="eventTitle"></h1>
-              <div class="metric-row">
-                <div class="metric">
-                  <span class="metric-value" id="participantCount">0</span>
-                  <span class="metric-label">응모수</span>
-                </div>
-                <div class="metric">
-                  <span class="metric-value" id="eventStateText">대기</span>
-                  <span class="metric-label">상태</span>
-                </div>
-              </div>
-              <p id="eventPeriod" class="muted"></p>
-            </div>
-
-            <form id="entryForm" class="entry-form" autocomplete="off">
-              <label for="nameInput">이름</label>
-              <input id="nameInput" name="name" placeholder="홍길동" maxlength="50" required />
-              <button id="submitEntryButton" class="btn primary" type="submit">응모하기</button>
-            </form>
-
-            <div id="entryMessage" class="message" role="status" aria-live="polite"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="drawPanel" class="draw-panel is-hidden">
-        <div class="section-heading">
-          <p class="eyebrow">Live Draw</p>
-          <h2>추첨 현황</h2>
-        </div>
-        <div id="drawStage" class="draw-stage empty-state">아직 추첨이 시작되지 않았습니다</div>
-        <div class="result-wrap">
-          <h3>당첨 결과</h3>
-          <ol id="resultList" class="result-list"></ol>
-        </div>
-      </section>
-    </main>
-  </body>
-</html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f0"><title>서비스 선택</title><script src="./scripts/home.js" defer></script>
+<style>*{box-sizing:border-box}body{margin:0;background:#f7f7f0;color:#29352c;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:900px;margin:auto;padding:90px 24px}.eyebrow{font-size:11px;letter-spacing:3px;color:#68775c}h1{font-size:38px;letter-spacing:-1.8px;margin:16px 0}p{color:#73796d;line-height:1.8}.services{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}.service{display:flex;flex-direction:column;min-height:220px;padding:26px;background:#fff;border:1px solid #dfe4d7;border-radius:16px;text-decoration:none;color:inherit;transition:transform .15s,border-color .15s}.service:hover{transform:translateY(-3px);border-color:#8c9c75}.service:focus-visible{outline:3px solid #859b66;outline-offset:4px}.symbol{font-size:27px;color:#536547}.service h2{font-size:20px;margin:22px 0 6px}.service p{font-size:13px;margin:0}.arrow{margin-top:auto;padding-top:24px;color:#536547;font-size:13px}footer{margin-top:50px;border-top:1px solid #dfe4d7;padding-top:20px;font-size:12px;color:#8b9084}@media(max-width:650px){main{padding:50px 20px}.services{grid-template-columns:1fr}.service{min-height:0}.service h2{margin-top:12px}h1{font-size:30px}}</style></head>
+<body><main><p class="eyebrow">WELCOME</p><h1>어디로 가볼까요?</h1><p>이용할 서비스를 선택해 주세요.</p><nav class="services" aria-label="서비스 선택">
+<a class="service" href="./reserves-ej/"><span class="symbol" aria-hidden="true">ej.</span><h2>은지 예약</h2><p>은지의 일정을 확인하고<br>만날 날을 신청해요.</p><span class="arrow">달력 보기 →</span></a>
+<a class="service" href="./lucky-pick/"><span class="symbol" aria-hidden="true">✦</span><h2>럭키픽</h2><p>번호를 선택하고<br>행운의 주인공이 되어 보세요.</p><span class="arrow">럭키픽 입장 →</span></a>
+<a class="service" href="./lucky-draw.html"><span class="symbol" aria-hidden="true">◇</span><h2>럭키드로우</h2><p>이벤트 코드를 입력하고<br>추첨에 참여하세요.</p><span class="arrow">럭키드로우 입장 →</span></a>
+</nav><noscript><p>각 서비스 이용 시에는 JavaScript가 필요합니다.</p></noscript><footer>각 서비스는 개별 주소로도 바로 접속할 수 있어요.</footer></main></body></html>
