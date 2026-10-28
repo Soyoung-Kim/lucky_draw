@@ -111,7 +111,6 @@ function logout() {
   token = ""; snapshot = null; editing = null;
   if ($("editDialog").open) $("editDialog").close();
   if ($("createDialog").open) $("createDialog").close();
-  if ($("surpriseDialog").open) $("surpriseDialog").close();
   document.body.classList.remove("presenting");
   $("dashboard").hidden = true; $("loginPanel").hidden = false; $("logout").hidden = true;
   $("eventPanel").hidden = true; $("exitPresentation").hidden = true;
@@ -278,9 +277,6 @@ $("loginForm").addEventListener("submit", (event) => {
   });
 });
 $("logout").addEventListener("click", logout);
-$("openSurpriseSettings").addEventListener("click", () => $("surpriseDialog").showModal());
-$("closeSurpriseSettings").addEventListener("click", () => $("surpriseDialog").close());
-$("surpriseDialog").addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
 $("openCreate").addEventListener("click", () => {
   $("createForm").reset(); $("createMessage").textContent = "";
   $("createDialog").showModal(); $("titleInput").focus();
