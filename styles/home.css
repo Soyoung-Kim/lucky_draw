@@ -1,0 +1,20 @@
+:root{color-scheme:light;--blue:#174dbb;--ink:#14243e;--muted:#42516a}
+*{box-sizing:border-box}
+body{margin:0;background:#f0f5ff;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:18px;line-height:1.8;word-break:keep-all}
+main{max-width:1040px;margin:auto;padding:70px 28px}
+.eyebrow{display:inline-block;font-size:15px;font-weight:800;letter-spacing:2px;color:var(--blue);border-bottom:3px solid var(--blue)}
+h1{font-size:44px;line-height:1.35;letter-spacing:-1px;margin:18px 0;font-weight:800}
+p{color:var(--muted);line-height:1.8}
+.services{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:36px}
+.service{display:flex;flex-direction:column;min-height:300px;padding:28px;background:#fff;border:2px solid #7184a1;border-top:8px solid var(--blue);border-radius:16px;text-decoration:none;color:inherit;transition:background .15s,border-color .15s;box-shadow:0 5px 14px #14243e0a}
+.service:hover{background:#e8efff;border-color:var(--blue)}
+.service:focus-visible{outline:4px solid #174dbb;outline-offset:5px;box-shadow:0 0 0 8px #fff}
+.symbol{display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:12px;background:#174dbb;color:#fff;font-size:28px;font-weight:700}
+.service h2{font-size:27px;line-height:1.5;margin:22px 0 10px;font-weight:800}
+.service p{font-size:18px;margin:0;color:#42516a}
+.arrow{display:block;margin-top:auto;padding:12px 16px;background:#174dbb;border-radius:8px;color:#fff;font-size:18px;font-weight:700;min-height:50px;line-height:1.5;margin-top:26px}
+.service:nth-child(2){border-top-color:#087044}.service:nth-child(2) .symbol,.service:nth-child(2) .arrow{background:#087044}
+.service:nth-child(3){border-top-color:#922c00}.service:nth-child(3) .symbol,.service:nth-child(3) .arrow{background:#922c00}
+footer{margin-top:44px;border-top:2px solid #a9b8cf;padding-top:20px;font-size:16px;color:#42516a}
+@media(max-width:700px){main{padding:36px 18px}.services{grid-template-columns:1fr;gap:20px}.service{min-height:0;padding:24px}.service h2{font-size:26px;margin-top:16px}h1{font-size:34px}.arrow{margin-top:20px}}
+@media(prefers-reduced-motion:reduce){.service{transition:none}}
