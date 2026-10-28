@@ -133,7 +133,7 @@ async function api(action, payload = {}) {
   if (data.error === "DB_UPDATE_REQUIRED") throw new Error("DB의 접수 재개 함수가 구버전입니다. 최신 접수 재개 SQL을 적용해 주세요.");
   if (data.error === "NO_REMAINING_CANDIDATES") throw new Error("추가 추첨할 참가자가 없습니다. 모든 참가자가 이미 당첨자로 선정되었습니다.");
   if (data.error === "SLOT_TAKEN") throw new Error("다른 참가자가 먼저 등록한 번호입니다. 새로고침 후 빈 번호를 선택해 주세요.");
-  if (data.details?.db_code === "23514") throw new Error("DB 제약조건이 당첨 인원 1~10명을 허용하지 않고 있습니다. 최신 repair-nds-admin.sql을 적용해 주세요.");
+  if (data.details?.db_code === "23514") throw new Error("DB 제약조건이 당첨 인원 1~15명을 허용하지 않고 있습니다. 최신 repair-nds-admin.sql을 적용해 주세요.");
   if (!response.ok || data.success !== true) {
     if (response.status === 401 && action !== "login") logout();
     const errors = { CLOSED: "접수 마감 이후에는 수정하거나 삭제할 수 없습니다.", NOT_CLOSED: "접수를 먼저 마감해 주세요.", NOT_DRAWING: "추첨을 먼저 시작해 주세요.", ALREADY_NAME: "이미 등록된 이름입니다.", NOT_ENOUGH_PARTICIPANTS: "참가자가 당첨 인원보다 적습니다.", EVENT_NOT_FOUND: "행사를 찾을 수 없습니다. 행사 ID를 확인해 주세요.", INVALID_NAME: "이름은 1~30자로 입력해 주세요.", TOO_MANY_REQUESTS: "요청이 많습니다. 1분 후 다시 시도해 주세요." };
@@ -245,6 +245,7 @@ function renderWinners() {
 }
 async function refresh(id = eventId) {
   const data = validate(await api("board", { event_id: id }));
+  if (snapshot?.event.id !== data.event.id) $("winnerCount").value = String(data.event.winner_limit ?? 10);
   if (snapshot?.event.id !== data.event.id || !snapshot?.winners.length && data.winners.length) {
     let saved = 0;
     try { saved = Number(sessionStorage.getItem(`nds_reveal_${data.event.id}`)) || 0; } catch { /* Start from first winner. */ }

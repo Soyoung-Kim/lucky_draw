@@ -1,5 +1,9 @@
 # NDS LUCKY 100 서버 적용
 
+## 당첨 인원 업데이트 (2026-10-28)
+
+최신 화면과 관리자 API는 기본 10명, 최대 15명을 사용한다. 기존 추첨이 있는 행사는 저장된 인원을 그대로 표시한다. 기존 DB에는 `migrations/202610280001_winner_limit_15.sql`을 실행하고 `nds-lucky-100-admin`을 재배포한다. 참가자가 선택 인원보다 적으면 추첨을 차단한다. `tests/nds-winner-limit-15.sql`로 1~15명별 추첨과 재개 제한을 검증한다. 아래 이전 업데이트 설명의 1~10명 제한은 이번 업데이트로 확장된다.
+
 기존 Supabase 프로젝트에 적용한다. 기존 schema.sql/policies.sql을 다시 실행하지 않는다.
 
 1. SQL Editor에서 `migrations/202610120001_nds_lucky_100.sql`을 한 번 실행한다.

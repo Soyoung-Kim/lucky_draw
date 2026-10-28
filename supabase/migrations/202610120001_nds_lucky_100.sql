@@ -4,7 +4,7 @@ create table public.nds_lucky_100_events (
   title text not null check (char_length(btrim(title)) between 1 and 120),
   status text not null default 'registration' check (status in ('registration','closed','drawing','completed')),
   max_slots integer not null default 100 check (max_slots between 2 and 150),
-  winner_limit integer check (winner_limit between 1 and 10),
+  winner_limit integer check (winner_limit between 1 and 15),
   closed_at timestamptz,
   closed_participant_count integer,
   created_at timestamptz not null default now()
@@ -22,7 +22,7 @@ create table public.nds_lucky_100_winners (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.nds_lucky_100_events(id),
   participant_id uuid not null,
-  prize_rank integer not null check (prize_rank between 1 and 10),
+  prize_rank integer not null check (prize_rank between 1 and 15),
   created_at timestamptz not null default now(),
   foreign key(event_id,participant_id) references public.nds_lucky_100_participants(event_id,id),
   unique(event_id,participant_id), unique(event_id,prize_rank)
@@ -151,7 +151,7 @@ begin
       end if;
       if e.status <> 'closed' then return jsonb_build_object('error','NOT_CLOSED'); end if;
       v_limit := (p_data->>'winner_count')::integer;
-      if v_limit is null or v_limit not between 1 and 10 then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
+      if v_limit is null or v_limit not between 1 and 15 then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
       select count(*) into v_count from public.nds_lucky_100_participants where event_id=e.id;
       if v_count < v_limit then return jsonb_build_object('error','NOT_ENOUGH_PARTICIPANTS'); end if;
       if jsonb_typeof(p_data->'candidate_ids') is distinct from 'array'

@@ -109,7 +109,8 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     return jsonResponse({ success: true, requested_count: count, inserted_count: inserted, stopped_reason: stoppedReason });
   }
   if (action === "draw") {
-    if (typeof payload.winner_count !== "number" || !Number.isInteger(payload.winner_count) || payload.winner_count < 1 || payload.winner_count > 10) throw new HttpError("INVALID_WINNER_COUNT", 400);
+    const winnerCount = payload.winner_count ?? 10;
+    if (typeof winnerCount !== "number" || !Number.isInteger(winnerCount) || winnerCount < 1 || winnerCount > 15) throw new HttpError("INVALID_WINNER_COUNT", 400);
     // closed events cannot be edited. Concurrent draws are resolved under the DB event lock.
     const { data: snapshot, error } = await client.rpc("nds_lucky_100_admin", { p_action: "board", p_event: eventId, p_actor: admin.admin_id, p_data: {} });
     if (error) {
@@ -119,10 +120,10 @@ Deno.serve((req) => withJsonHandler(req, async () => {
     if (snapshot.error) return result(snapshot);
     if (snapshot.event.status !== "closed" && !["drawing", "completed"].includes(snapshot.event.status)) return result({ error: "NOT_CLOSED" });
     if (["drawing", "completed"].includes(snapshot.event.status)) return result(snapshot);
-    if (snapshot.participants.length < payload.winner_count) return result({ error: "NOT_ENOUGH_PARTICIPANTS" });
-    data.winner_count = payload.winner_count;
+    if (snapshot.participants.length < winnerCount) return result({ error: "NOT_ENOUGH_PARTICIPANTS" });
+    data.winner_count = winnerCount;
     data.candidate_ids = snapshot.participants.map((p: { id: string }) => p.id);
-    data.participant_ids = secureShuffle<{ id: string }>(snapshot.participants).slice(0, payload.winner_count).map((p) => p.id);
+    data.participant_ids = secureShuffle<{ id: string }>(snapshot.participants).slice(0, winnerCount).map((p) => p.id);
   }
   const { data: response, error } = await client.rpc("nds_lucky_100_admin", { p_action: action, p_event: eventId, p_actor: admin.admin_id, p_data: data });
   if (error) {

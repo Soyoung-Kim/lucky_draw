@@ -4,9 +4,9 @@ alter table public.nds_lucky_100_events add constraint nds_lucky_100_events_max_
 alter table public.nds_lucky_100_participants drop constraint if exists nds_lucky_100_participants_slot_number_check;
 alter table public.nds_lucky_100_participants add constraint nds_lucky_100_participants_slot_number_check check(slot_number between 1 and 150);
 alter table public.nds_lucky_100_events drop constraint if exists nds_lucky_100_events_winner_limit_check;
-alter table public.nds_lucky_100_events add constraint nds_lucky_100_events_winner_limit_check check(winner_limit between 1 and 10);
+alter table public.nds_lucky_100_events add constraint nds_lucky_100_events_winner_limit_check check(winner_limit between 1 and 15);
 alter table public.nds_lucky_100_winners drop constraint if exists nds_lucky_100_winners_prize_rank_check;
-alter table public.nds_lucky_100_winners add constraint nds_lucky_100_winners_prize_rank_check check(prize_rank between 1 and 10);
+alter table public.nds_lucky_100_winners add constraint nds_lucky_100_winners_prize_rank_check check(prize_rank between 1 and 15);
 create or replace function public.nds_lucky_100_public(p_action text, p_event uuid, p_name text default null, p_slot integer default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare e public.nds_lucky_100_events%rowtype; p public.nds_lucky_100_participants%rowtype;
@@ -99,7 +99,7 @@ begin
       end if;
       if e.status <> 'closed' then return jsonb_build_object('error','NOT_CLOSED'); end if;
       v_limit := (p_data->>'winner_count')::integer;
-      if v_limit is null or v_limit not between 1 and 10 then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
+      if v_limit is null or v_limit not between 1 and 15 then return jsonb_build_object('error','INVALID_WINNER_COUNT'); end if;
       select count(*) into v_count from public.nds_lucky_100_participants where event_id=e.id;
       if v_count < v_limit then return jsonb_build_object('error','NOT_ENOUGH_PARTICIPANTS'); end if;
       if jsonb_typeof(p_data->'candidate_ids') is distinct from 'array'
