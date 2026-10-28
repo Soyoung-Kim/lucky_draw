@@ -7,7 +7,6 @@ let expiresAt = 0;
 let syncTask = null;
 let revealedCount = 0;
 let revealedOrders = new Set();
-const surprisePlayed = new Set();
 const winnerOrder = (winner) => winner.announcement_order ?? winner.prize_rank;
 const wasRevealed = (winner) => revealedOrders.has(winnerOrder(winner));
 let inlineEditing = null;
@@ -81,8 +80,6 @@ function controls() {
   $("popupNext").hidden = !canReveal;
   $("revealProgress").textContent = snapshot?.winners.length ? `${revealedCount} / ${snapshot.winners.length}명 공개` : "당첨 인원은 운영 화면에서 선택합니다.";
   $("winnerCount").disabled = busy || status !== "closed";
-  $("enableSurprise").disabled = busy;
-  $("surpriseName").disabled = busy;
   $("stageWinnerCount").disabled = $("winnerCount").disabled;
   $("stageWinnerCount").value = $("winnerCount").value;
   $("finish").disabled = busy || status !== "drawing" || canReveal;
@@ -402,13 +399,7 @@ function celebrateWinner() {
   setTimeout(() => layer.remove(), 4200);
 }
 async function revealWinner(targetId = null) {
-  const heroName = $("surpriseName").value.trim().replace(/\s+/g, " ").toLowerCase();
-  const hero = $("enableSurprise").checked ? snapshot.participants.find((p) => p.display_name.trim().replace(/\s+/g, " ").toLowerCase() === heroName) : null;
-  let alreadyPlayed = false;
-  try { alreadyPlayed = sessionStorage.getItem(`nds_surprise_played_${eventId}`) === "true"; } catch { alreadyPlayed = surprisePlayed.has(eventId); }
-  const isSurprise = !targetId && hero && !alreadyPlayed && !surprisePlayed.has(eventId)
-    && revealedCount === Math.max(0, snapshot.winners.length - 2);
-  const winner = isSurprise ? { participant_id: hero.id } : targetId ? snapshot.winners.find((w) => w.id === targetId)
+  const winner = targetId ? snapshot.winners.find((w) => w.id === targetId)
     : [...snapshot.winners].sort((a, b) => winnerOrder(a) - winnerOrder(b)).find((w) => !wasRevealed(w));
   if (!winner) return;
   const participant = snapshot.participants.find((p) => p.id === winner.participant_id);
@@ -420,7 +411,7 @@ async function revealWinner(targetId = null) {
   $("popupName").textContent = "두근두근…";
   $("popupProgress").textContent = `${revealedCount + 1} / ${snapshot.winners.length}명`;
   const disclosed = new Set(snapshot.winners.filter(wasRevealed).map((w) => w.participant_id));
-  const candidates = isSurprise ? snapshot.participants : snapshot.participants.filter((p) => !disclosed.has(p.id));
+  const candidates = snapshot.participants.filter((p) => !disclosed.has(p.id));
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 3000;
   const start = performance.now();
   try {
@@ -463,15 +454,10 @@ async function revealWinner(targetId = null) {
     });
     $("popupNumber").textContent = participant.slot_number;
     $("popupName").textContent = participant.display_name;
-    $("popupTitle").textContent = isSurprise ? "✦ 오늘의 서프라이즈 주인공" : "✦ 당첨을 축하합니다!";
-    if (isSurprise) {
-      $("popupProgress").textContent = `${participant.display_name} 님을 위해 준비한 서프라이즈입니다!`;
-      surprisePlayed.add(eventId);
-      try { sessionStorage.setItem(`nds_surprise_played_${eventId}`, "true"); } catch { /* In-memory guard remains. */ }
-    }
+    $("popupTitle").textContent = "✦ 당첨을 축하합니다!";
     $("winnerPopup").classList.add("celebrate");
     celebrateWinner();
-    if (!isSurprise) { revealedOrders.add(winnerOrder(winner)); revealedCount = revealedOrders.size; rememberReveal(); }
+    revealedOrders.add(winnerOrder(winner)); revealedCount = revealedOrders.size; rememberReveal();
   } finally { animating = false; render(); }
 }
 $("draw").addEventListener("click", () => {
