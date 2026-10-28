@@ -1,0 +1,90 @@
+/* Festival theme. Kept separate so this visual change can be reverted independently. */
+:root {
+  color: #25213e;
+  background: #fff7e8;
+  --festival-purple: #6026c9;
+  --festival-coral: #c12d50;
+  --festival-ink: #25213e;
+}
+body {
+  background:
+    radial-gradient(ellipse at 0% 0%, #ffe096 0, transparent 45%),
+    radial-gradient(ellipse at 100% 10%, #d6eaff 0, transparent 45%),
+    #fff7e8;
+}
+.brand { color: var(--festival-ink); font-weight: 700; }
+.brand-icon {
+  color: #fff;
+  background: var(--festival-purple);
+  box-shadow: 4px 4px 0 #ffbf42;
+}
+.brand strong { color: var(--festival-purple); }
+.intro > p:last-child { color: #514565; font-weight: 650; }
+.card {
+  border-color: #ded2ed;
+  box-shadow: 0 8px 0 #efdfc744, 0 12px 30px #56367b0c;
+}
+.step, .eyebrow { color: #a7254e; }
+.step span, .help, .metrics, footer { color: #62556d; }
+label { color: #463657; }
+input, select, .secondary {
+  color: #493366;
+  background: #fff;
+  border-color: #bfa9d8;
+}
+input::placeholder { color: #756880; }
+input:focus, select:focus {
+  border-color: var(--festival-purple);
+  outline: 3px solid #dfcdff;
+}
+.primary {
+  background: linear-gradient(115deg, #6026c9, #a52265);
+  color: #fff;
+  box-shadow: 0 4px 0 #491c94;
+}
+.primary:hover:enabled { background: #5420b3; }
+.primary:disabled { box-shadow: none; opacity: .5; }
+.secondary { background: #f0e7ff; border-color: #be9be9; }
+.secondary:hover:enabled { background: #e5d5ff; }
+.danger { background: #ffe0df; border-color: #eb9297; color: #a5203d; }
+.badge { background: #ffe09a; color: #65420d; font-size: 12px; }
+.slot:not(:disabled) {
+  background: #b8efd4;
+  border-color: #19734c;
+  color: #114d35;
+  box-shadow: 0 2px 0 #19734c30;
+}
+.slot:not(:disabled):hover { background: #94e4bb; border-color: #105f3c; }
+.slot:disabled { background: #e5e8ee; border-color: #c7ccd5; color: #737b89; box-shadow: none; }
+.slot[aria-pressed=true]:not(:disabled) {
+  color: #fff;
+  background: var(--festival-purple);
+  border-color: #421798;
+  box-shadow: 0 0 0 2px #ffcf5b;
+}
+.legend { color: #4d415f; }
+.legend i { background: #b8efd4; border-color: #19734c; }
+.legend .occupied { background: #e5e8ee; border-color: #c7ccd5; }
+.legend .selected { background: var(--festival-purple); border-color: #421798; }
+.selection, .own-slot, .result-icon, .metrics strong, .announcement { color: var(--festival-purple); }
+.message { color: #a5203d; }
+.result { background: linear-gradient(145deg, #fff, #f4ecff); }
+.result > p { color: #62556d; }
+.result.is-winner { background: linear-gradient(145deg, #fff9dd, #ffe8a5); border-color: #ca951d; }
+.result.is-winner h2, .result.is-winner .own-slot, .result.is-winner .result-icon { color: #80500c; }
+.admin-slot { border-color: #d5c8e3; background: #f0f1f5; color: #747180; }
+.admin-slot.filled { background: #dceeff; border-color: #91b8e5; color: #264c79; }
+.admin-slot.winner { background: var(--festival-purple); border-color: #491c94; color: #fff; }
+.admin-slot.highlight { outline-color: #ef9b13; box-shadow: 0 0 24px #ffc13e; }
+.winners li { background: #fff0c5; border: 1px solid #e5b344; }
+.winners strong { color: #67400a; }
+.absent-winner { background: #ecebf0 !important; border-color: #c9c5d1 !important; }
+body.presenting .stage {
+  background: radial-gradient(ellipse at 100% 0, #e9e0ff, transparent 55%), #fffbf1;
+}
+.winner-popup { background: #21123de6; }
+.winner-popup-card { background: radial-gradient(circle at top, #f2e5ff, #fff 70%); border-color: #ae79ef; }
+.celebrate .winner-popup-card { background: radial-gradient(circle at top, #ffe49a, #fff9e8 70%); }
+@media (forced-colors: active) {
+  .slot[aria-pressed=true]:not(:disabled), .admin-slot.winner { outline: 3px solid Highlight; }
+}
